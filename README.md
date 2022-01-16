@@ -1,2 +1,2 @@
 # dassana-python
-A python module for building Dassana data pipelines
+A python module for building Dassana data ingestions
