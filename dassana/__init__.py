@@ -1,1 +1,1 @@
-from rest import forward_logs
+from .rest import forward_logs

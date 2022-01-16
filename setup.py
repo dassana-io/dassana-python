@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='dassana',
-      version='0.1',
+      version='0.2',
       description='Dassana common data ingestion functions',
       url='https://github.com/dassana-io/dassana-python',
       author='Dassana',
@@ -10,6 +10,7 @@ setup(name='dassana',
       packages=['dassana'],
       install_requires=[
           'certifi',
-          'requests'
+          'requests',
+          'urllib3'
       ],
       zip_safe=False)
