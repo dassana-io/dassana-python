@@ -7,9 +7,9 @@ from urllib3.exceptions import MaxRetryError
 def forward_logs(log_data, endpoint=get_endpoint(), token=get_token(), app_id=get_app_id(), use_ssl=get_ssl()):
 
     headers = {
-      'X-Dassana-Token': token,
-      'X-Dassana-App-Id': app_id,
-      'Content-Type': 'application/json'
+      'x-dassana-token': token,
+      'x-dassana-app-id': app_id,
+      'Content-type': 'application/x-ndjson'
     }
 
     retry = Retry(
@@ -24,7 +24,7 @@ def forward_logs(log_data, endpoint=get_endpoint(), token=get_token(), app_id=ge
     http.mount("http://", adapter)
     http.mount("https://", adapter)
 
-    payload = '\n'.join(log_data)
+    payload = '\n'.join(log_data) + '\n'
 
     response = http.post(endpoint, headers=headers, data=payload, verify=use_ssl)
     return response
