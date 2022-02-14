@@ -1,5 +1,6 @@
 import requests
 from .dassana_env import *
+from json import dumps
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from urllib3.exceptions import MaxRetryError
@@ -24,7 +25,7 @@ def forward_logs(log_data, endpoint=get_endpoint(), token=get_token(), app_id=ge
     http.mount("http://", adapter)
     http.mount("https://", adapter)
 
-    payload = '\n'.join(log_data) + '\n'
+    payload = '\n'.join(dumps(log) for log in log_data) + '\n'
 
     response = http.post(endpoint, headers=headers, data=payload, verify=use_ssl)
     return response
