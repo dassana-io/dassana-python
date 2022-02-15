@@ -1,1 +1,1 @@
-from .rest import forward_logs
+from .data_pipes import DataPipe
