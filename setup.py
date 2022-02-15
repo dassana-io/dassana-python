@@ -1,7 +1,7 @@
 from setuptools import setup
 
 setup(name='dassana',
-      version='0.3.0',
+      version='0.4.2',
       description='Dassana common data ingestion utilities',
       url='https://github.com/dassana-io/dassana-python',
       author='Dassana',

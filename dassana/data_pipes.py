@@ -1,5 +1,6 @@
 import gzip
 from .rest import *
+from .dassana_env import *
 from json import dumps, load
 from io import BufferedReader, BytesIO
 
@@ -7,6 +8,10 @@ class CloudTrailPipe():
 
     def __init__(self):
         self.json_logs = []
+        self.exclude_kw = 'digest'
+    
+    def exclude(self, key):
+        return self.exclude_kw in key
     
     def push(self, content):
         with gzip.GzipFile(fileobj=BytesIO(content), mode='rb') as decompress_stream:
@@ -22,6 +27,10 @@ class VPCFlowPipe():
 
     def __init__(self):
         self.json_logs = []
+        self.exclude_kw = ''
+    
+    def exclude(self, key):
+        return self.exclude_kw in key
     
     def cast_field(self, k, v):
         int_fields = {'version', 'srcport', 'dstport', 'protocol', 'packets', 'bytes', 'start', 'end', 'tcp-flags', 'traffic-path'}
@@ -62,6 +71,10 @@ class ALBPipe():
 
     def __init__(self):
         self.json_logs = []
+        self.exclude_kw = ''
+    
+    def exclude(self, key):
+        return self.exclude_kw in key
 
     def cast_field(self, k, v):
         int_fields = {'request_processing_time', 'target_processing_time', 'response_processing_time', 'elb_status_code', 'target_status_code', 'received_bytes', 'sent_bytes', 'matched_rule_priority'}
@@ -116,7 +129,11 @@ class WAFPipe():
 
     def __init__(self):
         self.json_logs = []
+        self.exclude_kw = ''
     
+    def exclude(self, key):
+        return self.exclude_kw in key
+
     def push(self, content):
         with gzip.GzipFile(fileobj=BytesIO(content), mode='rb') as decompress_stream:
             log_data = b"".join(BufferedReader(decompress_stream))
@@ -133,6 +150,10 @@ class S3AccessPipe():
 
     def __init__(self):
         self.json_logs = []
+        self.exclude_kw = ''
+    
+    def exclude(self, key):
+        return self.exclude_kw in key
     
     def cast_field(self, k, v):
         int_fields = {'http_status', 'error_code', 'bytes_sent', 'object_size', 'total_time', 'turn_around_time'}
@@ -180,17 +201,17 @@ class S3AccessPipe():
         # Consider returning number of docs inserted pretty-printed
         return forward_logs(self.json_logs)
 
-def DataPipe(pipe):
+def DataPipe():
     
     pipe_selector = {
-        "Cloudtrail": CloudTrailPipe,
-        "VPCFlow": VPCFlowPipe,
-        "ALB": ALBPipe,
-        "WAF": WAFPipe,
-        "S3Access": S3AccessPipe
+        "aws_cloudtrail": CloudTrailPipe,
+        "aws_vpc_flow": VPCFlowPipe,
+        "aws_alb": ALBPipe,
+        "aws_waf": WAFPipe,
+        "aws_s3_access": S3AccessPipe
     }
 
-    return pipe_selector[pipe]()
+    return pipe_selector[get_app_id()]()
 
 
 
