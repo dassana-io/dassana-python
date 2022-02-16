@@ -60,8 +60,8 @@ class VPCFlowPipe():
                     vpc_log_struct[key] = log[line]
                     line += 1
 
-                vpc_log_struct = self.format_log(vpc_log_struct)
-                self.json_logs.append(dumps(vpc_log_struct, default=str))
+                vpc_log_fmt = self.format_log(vpc_log_struct)
+                self.json_logs.append(vpc_log_fmt)
     
     def flush(self):
         # Consider returning number of docs inserted pretty-printed
@@ -118,7 +118,7 @@ class ALBPipe():
                     merged_log.append(merged_string)
 
                 alb_log_struct = self.format_log(merged_log)
-                self.json_logs.append(dumps(alb_log_struct, default=str))
+                self.json_logs.append(alb_log_struct)
     
     def flush(self):
         # Consider returning number of docs inserted pretty-printed
@@ -200,7 +200,7 @@ class S3AccessPipe():
                 merged_log.append(merged_string)
 
             access_log_struct = self.format_log(merged_log)
-            self.json_logs.append(dumps(access_log_struct, default=str))
+            self.json_logs.append(access_log_struct)
     
     def flush(self):
         # Consider returning number of docs inserted pretty-printed
