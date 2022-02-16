@@ -1,6 +1,7 @@
 import gzip
 from .rest import *
 from .dassana_env import *
+from datetime import datetime
 from json import dumps, load
 from io import BufferedReader, BytesIO
 
@@ -27,10 +28,9 @@ class VPCFlowPipe():
 
     def __init__(self):
         self.json_logs = []
-        self.exclude_kw = ''
     
     def exclude(self, key):
-        return self.exclude_kw in key
+        return False
     
     def cast_field(self, k, v):
         int_fields = {'version', 'srcport', 'dstport', 'protocol', 'packets', 'bytes', 'start', 'end', 'tcp-flags', 'traffic-path'}
@@ -71,10 +71,9 @@ class ALBPipe():
 
     def __init__(self):
         self.json_logs = []
-        self.exclude_kw = ''
     
     def exclude(self, key):
-        return self.exclude_kw in key
+        return False
 
     def cast_field(self, k, v):
         int_fields = {'request_processing_time', 'target_processing_time', 'response_processing_time', 'elb_status_code', 'target_status_code', 'received_bytes', 'sent_bytes', 'matched_rule_priority'}
@@ -129,10 +128,9 @@ class WAFPipe():
 
     def __init__(self):
         self.json_logs = []
-        self.exclude_kw = ''
     
     def exclude(self, key):
-        return self.exclude_kw in key
+        return False
 
     def push(self, content):
         with gzip.GzipFile(fileobj=BytesIO(content), mode='rb') as decompress_stream:
@@ -150,15 +148,22 @@ class S3AccessPipe():
 
     def __init__(self):
         self.json_logs = []
-        self.exclude_kw = ''
     
     def exclude(self, key):
-        return self.exclude_kw in key
+        return False
+    
+    def convert_to_unix_ms(self, ts):
+        ts_fmtd = ts.strip('[]').split(' ')[0] # Remove offset
+        ts_unix = datetime.strptime(ts_fmtd, '%d/%b/%Y:%H:%M:%S')
+        epoch = datetime.utcfromtimestamp(0)
+        return int((ts_unix - epoch).total_seconds() * 1000.0)    
     
     def cast_field(self, k, v):
         int_fields = {'http_status', 'error_code', 'bytes_sent', 'object_size', 'total_time', 'turn_around_time'}
         if k in int_fields:
             return int(v)
+        elif k == 'time':
+            return self.convert_to_unix_ms(v)
         else:
             return v
 
