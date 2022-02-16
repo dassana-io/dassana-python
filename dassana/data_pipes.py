@@ -2,7 +2,7 @@ import gzip
 from .rest import *
 from .dassana_env import *
 from datetime import datetime
-from json import dumps, load
+from json import load
 from io import BufferedReader, BytesIO
 
 class CloudTrailPipe():
