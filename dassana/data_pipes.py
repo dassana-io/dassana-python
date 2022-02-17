@@ -1,7 +1,8 @@
 import gzip
 from .rest import *
 from .dassana_env import *
-from json import dumps, load
+from datetime import datetime
+from json import load
 from io import BufferedReader, BytesIO
 
 class CloudTrailPipe():
@@ -27,10 +28,9 @@ class VPCFlowPipe():
 
     def __init__(self):
         self.json_logs = []
-        self.exclude_kw = ''
     
     def exclude(self, key):
-        return self.exclude_kw in key
+        return False
     
     def cast_field(self, k, v):
         int_fields = {'version', 'srcport', 'dstport', 'protocol', 'packets', 'bytes', 'start', 'end', 'tcp-flags', 'traffic-path'}
@@ -60,8 +60,8 @@ class VPCFlowPipe():
                     vpc_log_struct[key] = log[line]
                     line += 1
 
-                vpc_log_struct = self.format_log(vpc_log_struct)
-                self.json_logs.append(dumps(vpc_log_struct, default=str))
+                vpc_log_fmt = self.format_log(vpc_log_struct)
+                self.json_logs.append(vpc_log_fmt)
     
     def flush(self):
         # Consider returning number of docs inserted pretty-printed
@@ -71,10 +71,9 @@ class ALBPipe():
 
     def __init__(self):
         self.json_logs = []
-        self.exclude_kw = ''
     
     def exclude(self, key):
-        return self.exclude_kw in key
+        return False
 
     def cast_field(self, k, v):
         int_fields = {'request_processing_time', 'target_processing_time', 'response_processing_time', 'elb_status_code', 'target_status_code', 'received_bytes', 'sent_bytes', 'matched_rule_priority'}
@@ -119,7 +118,7 @@ class ALBPipe():
                     merged_log.append(merged_string)
 
                 alb_log_struct = self.format_log(merged_log)
-                self.json_logs.append(dumps(alb_log_struct, default=str))
+                self.json_logs.append(alb_log_struct)
     
     def flush(self):
         # Consider returning number of docs inserted pretty-printed
@@ -129,10 +128,9 @@ class WAFPipe():
 
     def __init__(self):
         self.json_logs = []
-        self.exclude_kw = ''
     
     def exclude(self, key):
-        return self.exclude_kw in key
+        return False
 
     def push(self, content):
         with gzip.GzipFile(fileobj=BytesIO(content), mode='rb') as decompress_stream:
@@ -150,15 +148,22 @@ class S3AccessPipe():
 
     def __init__(self):
         self.json_logs = []
-        self.exclude_kw = ''
     
     def exclude(self, key):
-        return self.exclude_kw in key
+        return False
+    
+    def convert_to_unix_ms(self, ts):
+        ts_fmtd = ts.strip('[]').split(' ')[0] # Remove offset
+        ts_unix = datetime.strptime(ts_fmtd, '%d/%b/%Y:%H:%M:%S')
+        epoch = datetime.utcfromtimestamp(0)
+        return int((ts_unix - epoch).total_seconds() * 1000.0)    
     
     def cast_field(self, k, v):
         int_fields = {'http_status', 'error_code', 'bytes_sent', 'object_size', 'total_time', 'turn_around_time'}
         if k in int_fields:
             return int(v)
+        elif k == 'time':
+            return self.convert_to_unix_ms(v)
         else:
             return v
 
@@ -195,7 +200,7 @@ class S3AccessPipe():
                 merged_log.append(merged_string)
 
             access_log_struct = self.format_log(merged_log)
-            self.json_logs.append(dumps(access_log_struct, default=str))
+            self.json_logs.append(access_log_struct)
     
     def flush(self):
         # Consider returning number of docs inserted pretty-printed
