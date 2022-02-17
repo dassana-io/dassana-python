@@ -1,4 +1,5 @@
 import requests
+import gzip
 from .dassana_env import *
 from json import dumps
 from requests.adapters import HTTPAdapter
@@ -10,7 +11,8 @@ def forward_logs(log_data, endpoint=get_endpoint(), token=get_token(), app_id=ge
     headers = {
       'x-dassana-token': token,
       'x-dassana-app-id': app_id,
-      'Content-type': 'application/x-ndjson'
+      'Content-type': 'application/x-ndjson',
+      'Content-encoding': 'gzip'
     }
 
     retry = Retry(
@@ -26,6 +28,7 @@ def forward_logs(log_data, endpoint=get_endpoint(), token=get_token(), app_id=ge
     http.mount("https://", adapter)
 
     payload = '\n'.join(dumps(log) for log in log_data) + '\n'
+    payload_compressed = gzip.compress(payload.encode('utf-8'))
 
-    response = http.post(endpoint, headers=headers, data=payload, verify=use_ssl)
+    response = http.post(endpoint, headers=headers, data=payload_compressed, verify=use_ssl)
     return response
