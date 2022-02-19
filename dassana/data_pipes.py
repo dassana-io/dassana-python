@@ -2,7 +2,7 @@ import gzip
 from .rest import *
 from .dassana_env import *
 from datetime import datetime
-from json import load
+from json import load, loads
 from io import BufferedReader, BytesIO
 
 
@@ -296,7 +296,7 @@ class S3AccessPipe:
         return forward_logs(self.json_logs)
 
 
-class Route53PublicPipe:
+class Route53QueryPipe:
     def __init__(self):
         self.json_logs = []
 
@@ -304,10 +304,16 @@ class Route53PublicPipe:
         return False
 
     def push(self, content):
-        pass
+        with gzip.GzipFile(fileobj=BytesIO(content), mode="rb") as decompress_stream:
+            log_data = b"".join(BufferedReader(decompress_stream))
+            log_data = log_data.decode("utf-8")
+
+            for log in log_data.splitlines():
+                self.json_logs.append(loads(log))
 
     def flush(self):
-        pass
+        # Consider returning number of docs inserted pretty-printed
+        return forward_logs(self.json_logs)
 
 
 def DataPipe():
@@ -318,8 +324,7 @@ def DataPipe():
         "aws_alb": ALBPipe,
         "aws_waf": WAFPipe,
         "aws_s3_access": S3AccessPipe,
-        "aws_route53_public": None,
-        "aws_route53_resolver": None,
+        "aws_route53_query": Route53QueryPipe,
     }
 
     return pipe_selector[get_app_id()]()
