@@ -12,7 +12,7 @@ class CloudTrailPipe():
         self.exclude_kw = 'digest'
     
     def exclude(self, key):
-        return self.exclude_kw in key
+        return self.exclude_kw in key.lower()
     
     def push(self, content):
         with gzip.GzipFile(fileobj=BytesIO(content), mode='rb') as decompress_stream:
@@ -206,6 +206,21 @@ class S3AccessPipe():
         # Consider returning number of docs inserted pretty-printed
         return forward_logs(self.json_logs)
 
+class Route53PublicPipe():
+
+    def __init__(self):
+        self.json_logs = []
+    
+    def exclude(self, key):
+        return False
+    
+    def push(self, content):
+        pass
+
+    def flush(self):
+        pass
+
+
 def DataPipe():
     
     pipe_selector = {
@@ -213,7 +228,9 @@ def DataPipe():
         "aws_vpc_flow": VPCFlowPipe,
         "aws_alb": ALBPipe,
         "aws_waf": WAFPipe,
-        "aws_s3_access": S3AccessPipe
+        "aws_s3_access": S3AccessPipe,
+        "aws_route53_public": None,
+        "aws_route53_resolver": None
     }
 
     return pipe_selector[get_app_id()]()
