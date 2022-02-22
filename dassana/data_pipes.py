@@ -11,9 +11,8 @@ class Pipe(metaclass=ABCMeta):
     def __init__(self):
         self.json_logs = []
 
-    @abstractmethod
     def exclude(self, key):
-        pass
+        return False
 
     @abstractmethod
     def push(self, content):
@@ -40,9 +39,6 @@ class CloudTrailPipe(Pipe):
 class VPCFlowPipe(Pipe):
     def __init__(self):
         super().__init__()
-
-    def exclude(self, key):
-        return False
 
     def cast_field(self, k, v):
         int_fields = {
@@ -92,9 +88,6 @@ class VPCFlowPipe(Pipe):
 class ALBPipe:
     def __init__(self):
         super().__init__()
-
-    def exclude(self, key):
-        return False
 
     def cast_field(self, k, v):
         int_fields = {
@@ -187,9 +180,6 @@ class WAFPipe:
     def __init__(self):
         super().__init__()
 
-    def exclude(self, key):
-        return False
-
     def push(self, content):
         with gzip.GzipFile(fileobj=BytesIO(content), mode="rb") as decompress_stream:
             log_data = b"".join(BufferedReader(decompress_stream))
@@ -202,9 +192,6 @@ class WAFPipe:
 class S3AccessPipe:
     def __init__(self):
         super().__init__()
-
-    def exclude(self, key):
-        return False
 
     def convert_to_unix_ms(self, ts):
         ts_fmtd = ts.strip("[]").split(" ")[0]  # Remove offset
@@ -295,9 +282,6 @@ class S3AccessPipe:
 class Route53QueryPipe:
     def __init__(self):
         super().__init__()
-
-    def exclude(self, key):
-        return False
 
     def push(self, content):
         with gzip.GzipFile(fileobj=BytesIO(content), mode="rb") as decompress_stream:
