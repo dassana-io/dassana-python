@@ -1,18 +1,34 @@
 import gzip
 from .rest import *
 from .dassana_env import *
+from abc import ABCMeta, abstractmethod
 from datetime import datetime
 from json import load, loads
 from io import BufferedReader, BytesIO
 
 
-class CloudTrailPipe:
+class Pipe(metaclass=ABCMeta):
     def __init__(self):
         self.json_logs = []
-        self.exclude_kw = "digest"
+
+    @abstractmethod
+    def exclude(self, key):
+        pass
+
+    @abstractmethod
+    def push(self, content):
+        pass
+
+    def flush(self):
+        return forward_logs(self.json_logs)
+
+
+class CloudTrailPipe(Pipe):
+    def __init__(self):
+        super().__init__()
 
     def exclude(self, key):
-        return self.exclude_kw in key.lower()
+        return "digest" in key.lower()
 
     def push(self, content):
         with gzip.GzipFile(fileobj=BytesIO(content), mode="rb") as decompress_stream:
@@ -20,14 +36,10 @@ class CloudTrailPipe:
             for record in log_data["Records"]:
                 self.json_logs.append(record)
 
-    def flush(self):
-        # Consider returning number of docs inserted pretty-printed
-        return forward_logs(self.json_logs)
 
-
-class VPCFlowPipe:
+class VPCFlowPipe(Pipe):
     def __init__(self):
-        self.json_logs = []
+        super().__init__()
 
     def exclude(self, key):
         return False
@@ -76,14 +88,10 @@ class VPCFlowPipe:
                 vpc_log_fmt = self.format_log(vpc_log_struct)
                 self.json_logs.append(vpc_log_fmt)
 
-    def flush(self):
-        # Consider returning number of docs inserted pretty-printed
-        return forward_logs(self.json_logs)
-
 
 class ALBPipe:
     def __init__(self):
-        self.json_logs = []
+        super().__init__()
 
     def exclude(self, key):
         return False
@@ -174,14 +182,10 @@ class ALBPipe:
                 alb_log_struct = self.format_log(merged_log)
                 self.json_logs.append(alb_log_struct)
 
-    def flush(self):
-        # Consider returning number of docs inserted pretty-printed
-        return forward_logs(self.json_logs)
-
 
 class WAFPipe:
     def __init__(self):
-        self.json_logs = []
+        super().__init__()
 
     def exclude(self, key):
         return False
@@ -194,14 +198,10 @@ class WAFPipe:
                 log = log_data[i].decode("utf-8")
                 self.json_logs.append(log)
 
-    def flush(self):
-        # Consider returning number of docs inserted pretty-printed
-        return forward_logs(self.json_logs)
-
 
 class S3AccessPipe:
     def __init__(self):
-        self.json_logs = []
+        super().__init__()
 
     def exclude(self, key):
         return False
@@ -291,14 +291,10 @@ class S3AccessPipe:
             access_log_struct = self.format_log(merged_log)
             self.json_logs.append(access_log_struct)
 
-    def flush(self):
-        # Consider returning number of docs inserted pretty-printed
-        return forward_logs(self.json_logs)
-
 
 class Route53QueryPipe:
     def __init__(self):
-        self.json_logs = []
+        super().__init__()
 
     def exclude(self, key):
         return False
@@ -310,10 +306,6 @@ class Route53QueryPipe:
 
             for log in log_data.splitlines():
                 self.json_logs.append(loads(log))
-
-    def flush(self):
-        # Consider returning number of docs inserted pretty-printed
-        return forward_logs(self.json_logs)
 
 
 def DataPipe():
