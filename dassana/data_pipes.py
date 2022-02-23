@@ -85,7 +85,7 @@ class VPCFlowPipe(Pipe):
                 self.json_logs.append(vpc_log_fmt)
 
 
-class ALBPipe:
+class ALBPipe(Pipe):
     def __init__(self):
         super().__init__()
 
@@ -176,7 +176,7 @@ class ALBPipe:
                 self.json_logs.append(alb_log_struct)
 
 
-class WAFPipe:
+class WAFPipe(Pipe):
     def __init__(self):
         super().__init__()
 
@@ -189,7 +189,7 @@ class WAFPipe:
                 self.json_logs.append(log)
 
 
-class S3AccessPipe:
+class S3AccessPipe(Pipe):
     def __init__(self):
         super().__init__()
 
@@ -279,7 +279,7 @@ class S3AccessPipe:
             self.json_logs.append(access_log_struct)
 
 
-class Route53QueryPipe:
+class Route53QueryPipe(Pipe):
     def __init__(self):
         super().__init__()
 
