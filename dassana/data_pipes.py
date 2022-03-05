@@ -292,6 +292,21 @@ class Route53QueryPipe(Pipe):
                 self.json_logs.append(loads(log))
 
 
+class NetworkFirewallPipe(Pipe):
+    def __init__(self):
+        super().__init__()
+
+    def push(self, content):
+        with gzip.GzipFile(fileobj=BytesIO(content), mode="rb") as decompress_stream:
+            log_data = b"".join(BufferedReader(decompress_stream))
+            log_data = log_data.decode("utf-8")
+
+            for log in log_data.splitlines():
+                log = loads(log)
+                log["event_timestamp"] = int(log["event_timestamp"])
+                self.json_logs.append(log)
+
+
 def DataPipe():
 
     pipe_selector = {
@@ -301,6 +316,7 @@ def DataPipe():
         "aws_waf": WAFPipe,
         "aws_s3_access": S3AccessPipe,
         "aws_route53_query": Route53QueryPipe,
+        "aws_network_firewall": NetworkFirewallPipe,
     }
 
     return pipe_selector[get_app_id()]()
