@@ -35,9 +35,37 @@ def forward_logs(
     http.mount("https://", adapter)
 
     payload = "\n".join(dumps(log) for log in log_data) + "\n"
-    payload_compressed = gzip.compress(payload.encode("utf-8"))
 
-    response = http.post(
-        endpoint, headers=headers, data=payload_compressed, verify=use_ssl
-    )
-    return response
+    bytes_so_far = 0
+    payload = ""
+    responses = []
+
+    for log in log_data:
+        payload += dumps(log) + "\n"
+        bytes_so_far += len(dumps(log))
+        if bytes_so_far > 5242880:
+            payload_compressed = gzip.compress(payload.encode("utf-8"))
+            response = http.post(
+                endpoint, headers=headers, data=payload_compressed, verify=use_ssl
+            )
+            bytes_so_far = 0
+            payload = ""
+            responses.append(response)
+
+    if bytes_so_far > 0:
+        payload_compressed = gzip.compress(payload.encode("utf-8"))
+        response = http.post(
+            endpoint, headers=headers, data=payload_compressed, verify=use_ssl
+        )
+        responses.append(response)
+
+    res_objs = [response.json() for response in responses]
+    all_ok = all(response.status_code == 200 for response in responses)
+    total_docs = sum(response.get("docCount", 0) for response in res_objs)
+
+    return {
+        "batches": len(responses),
+        "success": all_ok,
+        "total_docs": total_docs,
+        "responses": res_objs,
+    }
