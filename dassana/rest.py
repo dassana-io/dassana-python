@@ -39,11 +39,12 @@ def forward_logs(
     bytes_so_far = 0
     payload = ""
     responses = []
+    batch_size = get_batch_size()
 
     for log in log_data:
         payload += dumps(log) + "\n"
         bytes_so_far += len(dumps(log))
-        if bytes_so_far > 5242880:
+        if bytes_so_far > batch_size * 1048576:
             payload_compressed = gzip.compress(payload.encode("utf-8"))
             response = http.post(
                 endpoint, headers=headers, data=payload_compressed, verify=use_ssl

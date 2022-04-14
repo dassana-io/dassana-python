@@ -27,3 +27,16 @@ def get_token():
 
 def get_ssl():
     return get_endpoint().startswith("https")
+
+
+def get_batch_size():
+    if "DASSANA_BATCH_SIZE" not in os.environ:
+        raise KeyError(
+            "DASSANA_BATCH_SIZE environment variable is not set. Review your Lambda configuration."
+        )
+
+    batch_size = os.environ["DASSANA_BATCH_SIZE"]
+    if not batch_size.isdigit():
+        raise ValueError("DASSANA_BATCH_SIZE environment variable is not an integer.")
+
+    return batch_size
