@@ -39,4 +39,4 @@ def get_batch_size():
     if not batch_size.isdigit():
         raise ValueError("DASSANA_BATCH_SIZE environment variable is not an integer.")
 
-    return batch_size
+    return int(batch_size)

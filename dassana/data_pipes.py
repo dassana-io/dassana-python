@@ -1,4 +1,5 @@
 import gzip
+import base64
 from .rest import *
 from .dassana_env import *
 from abc import ABCMeta, abstractmethod
@@ -307,6 +308,35 @@ class NetworkFirewallPipe(Pipe):
                 self.json_logs.append(log)
 
 
+class AzureActivityPipe(Pipe):
+    def __init__(self):
+        super().__init__()
+
+    def push(self, content):
+        log_data = loads(content)
+        for record in log_data["records"]:
+            self.json_logs.append(record)
+
+
+class EKSPipe(Pipe):
+    def __init__(self):
+        super().__init__()
+
+    def push(self, content):
+        decoded_event = base64.b64decode(content)
+        decompressed_content = gzip.decompress(decoded_event)
+        decompressed_content = loads(decompressed_content)
+        cw_logs = decompressed_content["logEvents"]
+        for log in cw_logs:
+            try:
+                fmt_log = loads(log["message"])
+                fmt_log["timestamp"] = log["timestamp"]
+            except Exception:
+                fmt_log = log["message"]
+
+            self.json_logs.append(fmt_log)
+
+
 def DataPipe():
 
     pipe_selector = {
@@ -317,6 +347,8 @@ def DataPipe():
         "aws_s3_access": S3AccessPipe,
         "aws_route53_query": Route53QueryPipe,
         "aws_network_firewall": NetworkFirewallPipe,
+        "azure_test": AzureActivityPipe,
+        "aws_eks": EKSPipe,
     }
 
     return pipe_selector[get_app_id()]()
