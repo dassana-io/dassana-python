@@ -332,7 +332,7 @@ class EKSPipe(Pipe):
                 fmt_log = loads(log["message"])
                 fmt_log["timestamp"] = log["timestamp"]
             except Exception:
-                fmt_log = log["message"]
+                fmt_log = log
 
             self.json_logs.append(fmt_log)
 
