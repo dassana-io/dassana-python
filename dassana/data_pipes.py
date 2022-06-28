@@ -336,6 +336,24 @@ class EKSPipe(Pipe):
 
             self.json_logs.append(fmt_log)
 
+class ConfigPipe(Pipe):
+    def __init__(self):
+        super().__init__()
+        self.bytes_so_far = 0
+
+    def push(self, content):
+        configurationItems = content['configurationItems']   
+        for item in configurationItems:
+            self.json_logs.append(item)
+            self.bytes_so_far += len(dumps(item))
+        if self.bytes_so_far >= 20:
+            self.bytes_so_far = 0
+            return True
+        else:
+            return False
+       
+
+
 
 def DataPipe():
 
@@ -349,6 +367,7 @@ def DataPipe():
         "aws_network_firewall": NetworkFirewallPipe,
         "azure_test": AzureActivityPipe,
         "aws_eks": EKSPipe,
+        "aws_config": ConfigPipe,
     }
 
     return pipe_selector[get_app_id()]()
