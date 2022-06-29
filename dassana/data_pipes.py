@@ -352,8 +352,16 @@ class ConfigPipe(Pipe):
         else:
             return False
        
+class ConfigChangePipe(Pipe):
+    def __init__(self):
+        super().__init__()
 
-
+    def push(self, content):
+        with gzip.GzipFile(fileobj=BytesIO(content), mode="rb") as decompress_stream:
+            data = load(decompress_stream)     
+            items = data['configurationItems']
+            for item in items:
+                self.json_logs.append(item)
 
 def DataPipe():
 
@@ -368,6 +376,7 @@ def DataPipe():
         "azure_test": AzureActivityPipe,
         "aws_eks": EKSPipe,
         "aws_config": ConfigPipe,
+        "aws_config_change": ConfigChangePipe
     }
 
     return pipe_selector[get_app_id()]()
