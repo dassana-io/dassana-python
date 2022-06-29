@@ -20,7 +20,7 @@ class Pipe(metaclass=ABCMeta):
         pass
 
     def flush(self):
-        flush_res = forward_logs(self.json_logs)
+        flush_res = forward_logs(self.json_logs, app_id=self.app_id)
         self.json_logs = []
         return flush_res
         
@@ -339,10 +339,11 @@ class EKSPipe(Pipe):
 
             self.json_logs.append(fmt_log)
 
-class ConfigPipe(Pipe):
-    def __init__(self):
+class ConfigSnapshotPipe(Pipe):
+    def __init__(self, app_id = ''):
         super().__init__()
         self.bytes_so_far = 0
+        self.app_id = app_id
 
     def push(self, content):
         self.json_logs.append(content)
@@ -352,12 +353,21 @@ class ConfigPipe(Pipe):
             return True
         else:
             return False
-       
 
+class ConfigChangePipe(Pipe):
+    def __init__(self, app_id = ''):
+        super().__init__()
+        self.app_id = app_id
+
+    def push(self, content):
+        with gzip.GzipFile(fileobj=BytesIO(content), mode="rb") as decompress_stream:
+            data = load(decompress_stream)     
+            items = data['configurationItems']
+            for item in items:
+                self.json_logs.append(item)
 
 
 def DataPipe():
-
     pipe_selector = {
         "aws_cloudtrail": CloudTrailPipe,
         "aws_vpc_flow": VPCFlowPipe,
@@ -368,7 +378,14 @@ def DataPipe():
         "aws_network_firewall": NetworkFirewallPipe,
         "azure_test": AzureActivityPipe,
         "aws_eks": EKSPipe,
-        "aws_config": ConfigPipe,
     }
-
     return pipe_selector[get_app_id()]()
+
+def ConfigPipe(app_id='aws_config', one_time=True):
+    if one_time:
+        return ConfigSnapshotPipe(app_id=app_id)
+    else: 
+        return ConfigChangePipe(app_id=app_id)
+
+
+    
