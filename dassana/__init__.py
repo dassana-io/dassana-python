@@ -1,1 +1,1 @@
-from .data_pipes import DataPipe
+from .data_pipes import DataPipe, ConfigPipe
