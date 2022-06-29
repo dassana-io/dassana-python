@@ -20,7 +20,10 @@ class Pipe(metaclass=ABCMeta):
         pass
 
     def flush(self):
-        return forward_logs(self.json_logs)
+        flush_res = forward_logs(self.json_logs)
+        self.json_logs = []
+        return flush_res
+        
 
 
 class CloudTrailPipe(Pipe):
@@ -342,11 +345,9 @@ class ConfigPipe(Pipe):
         self.bytes_so_far = 0
 
     def push(self, content):
-        configurationItems = content['configurationItems']   
-        for item in configurationItems:
-            self.json_logs.append(item)
-            self.bytes_so_far += len(dumps(item))
-        if self.bytes_so_far >= 20:
+        self.json_logs.append(content)
+        self.bytes_so_far += len(dumps(content))
+        if self.bytes_so_far >= (0.1 * 1048576):
             self.bytes_so_far = 0
             return True
         else:
@@ -367,7 +368,7 @@ def DataPipe():
         "aws_network_firewall": NetworkFirewallPipe,
         "azure_test": AzureActivityPipe,
         "aws_eks": EKSPipe,
-        "aws_config": ConfigPipe,
+        "_aws_config": ConfigPipe,
     }
 
     return pipe_selector[get_app_id()]()
