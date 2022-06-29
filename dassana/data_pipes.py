@@ -368,7 +368,7 @@ def DataPipe():
         "aws_network_firewall": NetworkFirewallPipe,
         "azure_test": AzureActivityPipe,
         "aws_eks": EKSPipe,
-        "_aws_config": ConfigPipe,
+        "aws_config": ConfigPipe,
     }
 
     return pipe_selector[get_app_id()]()
