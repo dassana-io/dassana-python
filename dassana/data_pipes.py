@@ -362,6 +362,7 @@ class ConfigChangePipe(Pipe):
             items = data['configurationItems']
             for item in items:
                 self.json_logs.append(item)
+# Test
 
 def DataPipe():
 
