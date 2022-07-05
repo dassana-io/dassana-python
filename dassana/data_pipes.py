@@ -340,10 +340,10 @@ class EKSPipe(Pipe):
             self.json_logs.append(fmt_log)
 
 class ConfigSnapshotPipe(Pipe):
-    def __init__(self, app_id = ''):
+    def __init__(self):
         super().__init__()
         self.bytes_so_far = 0
-        self.app_id = app_id
+        self.app_id = get_app_id()
 
     def push(self, content):
         self.json_logs.append(content)
@@ -355,16 +355,16 @@ class ConfigSnapshotPipe(Pipe):
             return False
 
 class ConfigChangePipe(Pipe):
-    def __init__(self, app_id = ''):
+    def __init__(self):
         super().__init__()
-        self.app_id = app_id
+        self.app_id = get_app_id()
 
     def push(self, content):
-        with gzip.GzipFile(fileobj=BytesIO(content), mode="rb") as decompress_stream:
-            data = load(decompress_stream)     
-            items = data['configurationItems']
-            for item in items:
-                self.json_logs.append(item)
+        items = content['Records']
+        for item in items:
+            item["body"] = loads(item["body"])
+            output = loads(item["body"]["Message"])
+            self.json_logs.append(output)
 
 
 def DataPipe():
@@ -381,11 +381,11 @@ def DataPipe():
     }
     return pipe_selector[get_app_id()]()
 
-def ConfigPipe(app_id='aws_config', one_time=True):
+def ConfigPipe(one_time=True):
     if one_time:
-        return ConfigSnapshotPipe(app_id=app_id)
+        return ConfigSnapshotPipe()
     else: 
-        return ConfigChangePipe(app_id=app_id)
+        return ConfigChangePipe()
 
 
     
