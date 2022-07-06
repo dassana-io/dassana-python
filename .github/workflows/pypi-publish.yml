@@ -9,6 +9,9 @@ jobs:
   publish_to_pypi:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
+        name: checkout latest code
+
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
