@@ -346,6 +346,12 @@ class ConfigSnapshotPipe(Pipe):
         self.app_id = get_app_id()
 
     def push(self, content):
+        content["Cloud"] = "aws"
+        content["ResourceContainer"] = content["awsAccountID"]
+        content["Region"] = content["awsRegion"]
+        content["Service"] = content["ResourceType"].split('::')[1]
+        content["ResourceName"] = content["tags"]["name"]
+        content["Config"] = content
         self.json_logs.append(content)
         self.bytes_so_far += len(dumps(content))
         if self.bytes_so_far >= (0.1 * 1048576):
@@ -364,8 +370,20 @@ class ConfigChangePipe(Pipe):
         for item in items:
             item["body"] = loads(item["body"])
             output = loads(item["body"]["Message"])
+            if output["messageType"] != "ConfigurationItemChangeNotification":
+                continue
+            output["Cloud"] = "aws"
+            output["ResourceContainer"] = output["ConfigurationItem"]["awsAccountId"]
+            output["Region"] = output["configurationItem"]["awsRegion"]
+            output["Service"] = output["ConfigurationItem"]["resourceType"].split("::")[1]
+            output["ResourceType"] = output["ConfigurationItem"]["resourceType"]
+            output["ResourceID"] = output["configurationItem"]["resourceId"]
+            try:
+                output["ResourceName"] = output["configurationItem"]["resourceName"]
+            except:
+                pass
+            output["Config"] = output["ConfigurationItem"]
             self.json_logs.append(output)
-
 
 def DataPipe():
     pipe_selector = {
