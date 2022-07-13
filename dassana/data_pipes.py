@@ -349,7 +349,7 @@ class ConfigSnapshotPipe(Pipe):
         content["Cloud"] = "aws"
         content["ResourceContainer"] = content["awsAccountID"]
         content["Region"] = content["awsRegion"]
-        content["Service"] = content["ResourceType"].split('::')[1]
+        content["Service"] = content["resourceType"].split('::')[1]
         content["ResourceName"] = content["tags"]["name"]
         content["Config"] = content
         self.json_logs.append(content)
@@ -373,16 +373,16 @@ class ConfigChangePipe(Pipe):
             if output["messageType"] != "ConfigurationItemChangeNotification":
                 continue
             output["Cloud"] = "aws"
-            output["ResourceContainer"] = output["ConfigurationItem"]["awsAccountId"]
+            output["ResourceContainer"] = output["configurationItem"]["awsAccountId"]
             output["Region"] = output["configurationItem"]["awsRegion"]
-            output["Service"] = output["ConfigurationItem"]["resourceType"].split("::")[1]
-            output["ResourceType"] = output["ConfigurationItem"]["resourceType"]
+            output["Service"] = output["configurationItem"]["resourceType"].split("::")[1]
+            output["ResourceType"] = output["configurationItem"]["resourceType"]
             output["ResourceID"] = output["configurationItem"]["resourceId"]
             try:
                 output["ResourceName"] = output["configurationItem"]["resourceName"]
             except:
                 pass
-            output["Config"] = output["ConfigurationItem"]
+            output["Config"] = output["configurationItem"]
             self.json_logs.append(output)
 
 def DataPipe():
