@@ -346,8 +346,18 @@ class ConfigSnapshotPipe(Pipe):
         self.app_id = get_app_id()
 
     def push(self, content):
-        self.json_logs.append(content)
-        self.bytes_so_far += len(dumps(content))
+        output = {}
+        output["Cloud"] = "aws"
+        output["ResourceContainer"] = content["awsAccountID"]
+        output["Region"] = content["awsRegion"]
+        output["Service"] = content["resourceType"].split('::')[1]
+        try:
+            output["ResourceName"] = content["resourceName"]
+        except:
+            pass
+        output["Config"] = content
+        self.json_logs.append(output)
+        self.bytes_so_far += len(dumps(output))
         if self.bytes_so_far >= (0.1 * 1048576):
             self.bytes_so_far = 0
             return True
@@ -363,9 +373,22 @@ class ConfigChangePipe(Pipe):
         items = content['Records']
         for item in items:
             item["body"] = loads(item["body"])
-            output = loads(item["body"]["Message"])
+            temp = loads(item["body"]["Message"])
+            if temp["messageType"] != "ConfigurationItemChangeNotification":
+                continue
+            output = {}
+            output["Cloud"] = "aws"
+            output["ResourceContainer"] = temp["configurationItem"]["awsAccountId"]
+            output["Region"] = temp["configurationItem"]["awsRegion"]
+            output["Service"] = temp["configurationItem"]["resourceType"].split("::")[1]
+            output["ResourceType"] = temp["configurationItem"]["resourceType"]
+            output["ResourceID"] = temp["configurationItem"]["resourceId"]
+            try:
+                output["ResourceName"] = temp["configurationItem"]["resourceName"]
+            except:
+                pass
+            output["Config"] = temp["configurationItem"]
             self.json_logs.append(output)
-
 
 def DataPipe():
     pipe_selector = {
@@ -378,6 +401,7 @@ def DataPipe():
         "aws_network_firewall": NetworkFirewallPipe,
         "azure_test": AzureActivityPipe,
         "aws_eks": EKSPipe,
+        "github_assets": GithubAssetPipe
     }
     return pipe_selector[get_app_id()]()
 
