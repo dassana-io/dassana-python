@@ -394,6 +394,7 @@ class ConfigChangePipe(Pipe):
 class GithubAssetPipe(Pipe):
     def __init__(self):
         super().__init__()
+        self.app_id = get_app_id()
 
     def push(self, content):
         for item in content:
