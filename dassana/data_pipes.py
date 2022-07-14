@@ -1,5 +1,6 @@
 import gzip
 import base64
+from pyclbr import Class
 from .rest import *
 from .dassana_env import *
 from abc import ABCMeta, abstractmethod
@@ -388,6 +389,23 @@ class ConfigChangePipe(Pipe):
             except:
                 pass
             output["Config"] = temp["configurationItem"]
+            self.json_logs.append(output)
+
+class GithubAssetPipe(Pipe):
+    def __init__(self):
+        super().__init__()
+
+    def push(self, content):
+        for item in content:
+            output = {}
+            output["Cloud"] = "github"
+            output["ResourceContainer"] = item["owner"]["id"]
+            output["ResourceName"] = item["name"]
+            output["Region"] = "global"
+            output["Service"] = "git"
+            output["ResourceType"] = "repository"
+            output["ResourceID"] = item["id"]
+            output["Config"] = item
             self.json_logs.append(output)
 
 def DataPipe():
