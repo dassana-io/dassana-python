@@ -419,7 +419,7 @@ def DataPipe():
         "aws_network_firewall": NetworkFirewallPipe,
         "azure_test": AzureActivityPipe,
         "aws_eks": EKSPipe,
-        "github_assets": GithubAssetPipe
+        "_github_assets": GithubAssetPipe
     }
     return pipe_selector[get_app_id()]()
 
