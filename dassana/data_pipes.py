@@ -21,7 +21,7 @@ class Pipe(metaclass=ABCMeta):
         pass
 
     def flush(self):
-        flush_res = forward_logs(self.json_logs, app_id=self.app_id)
+        flush_res = forward_logs(self.json_logs)
         self.json_logs = []
         return flush_res
         
@@ -344,7 +344,6 @@ class ConfigSnapshotPipe(Pipe):
     def __init__(self):
         super().__init__()
         self.bytes_so_far = 0
-        self.app_id = get_app_id()
 
     def push(self, content):
         output = {}
@@ -368,7 +367,6 @@ class ConfigSnapshotPipe(Pipe):
 class ConfigChangePipe(Pipe):
     def __init__(self):
         super().__init__()
-        self.app_id = get_app_id()
 
     def push(self, content):
         items = content['Records']
@@ -394,7 +392,6 @@ class ConfigChangePipe(Pipe):
 class GithubAssetPipe(Pipe):
     def __init__(self):
         super().__init__()
-        self.app_id = get_app_id()
 
     def push(self, content):
         for item in content:
@@ -420,7 +417,7 @@ def DataPipe():
         "aws_network_firewall": NetworkFirewallPipe,
         "azure_test": AzureActivityPipe,
         "aws_eks": EKSPipe,
-        "_github_assets": GithubAssetPipe
+        "github_assets": GithubAssetPipe
     }
     return pipe_selector[get_app_id()]()
 
