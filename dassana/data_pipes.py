@@ -406,6 +406,42 @@ class GithubAssetPipe(Pipe):
             output["Config"] = item
             self.json_logs.append(output)
 
+class QualysPipe(Pipe):
+    def __init__(self):
+        super().__init__()
+
+    def push(self, content):
+        hosts = content["HOST_LIST_VM_DETECTION_OUTPUT"]["RESPONSE"]["HOST_LIST"]["HOST"]
+        if isinstance(hosts, list):
+            for host in hosts:
+                hostID = host["ID"]
+                detections = host["DETECTION_LIST"]["DETECTION"]
+                if isinstance(detections, list):
+                    for detection in detections:
+                        output = {}
+                        output["Config"] = detection
+                        output["ResourceID"] = hostID
+                        self.json_logs.append(output)
+                else:
+                    output = {}
+                    output["Config"] = detections
+                    output["ResourceID"] = hostID
+                    self.json_logs.append(output)
+        else:
+            hostID = hosts["ID"]
+            detections = hosts["DETECTION_LIST"]["DETECTION"]
+            if isinstance(detections, list):
+                for detection in detections:
+                    output = {}
+                    output["Config"] = detection
+                    output["ResourceID"] = hostID
+                    self.json_logs.append(output)
+            else:
+                output = {}
+                output["Config"] = detections
+                output["ResourceID"] = hostID
+                self.json_logs.append(output)
+
 def DataPipe():
     pipe_selector = {
         "aws_cloudtrail": CloudTrailPipe,
@@ -417,7 +453,8 @@ def DataPipe():
         "aws_network_firewall": NetworkFirewallPipe,
         "azure_test": AzureActivityPipe,
         "aws_eks": EKSPipe,
-        "github_assets": GithubAssetPipe
+        "github_assets": GithubAssetPipe,
+        "qualys": QualysPipe
     }
     return pipe_selector[get_app_id()]()
 
