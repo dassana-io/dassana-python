@@ -435,7 +435,7 @@ def DataPipe():
         "azure_test": AzureActivityPipe,
         "aws_eks": EKSPipe,
         "github_assets": GithubAssetPipe,
-        "_prisma_cloud": PrismaPipe,
+        "prisma_cloud": PrismaPipe,
     }
     return pipe_selector[get_app_id()]()
 
