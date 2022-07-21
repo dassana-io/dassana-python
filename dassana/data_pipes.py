@@ -406,6 +406,23 @@ class GithubAssetPipe(Pipe):
             output["Config"] = item
             self.json_logs.append(output)
 
+class PrismaPipe(Pipe):
+    def __init__(self):
+        super().__init__()
+
+    def push(self, content):
+        output = {}
+        output["Cloud"] = content["resource"]["cloudType"]
+        output["ResourceContainer"] = content["resource"]["accountId"]
+        output["ResourceName"] = content["resource"]["name"]
+        output["Region"] = content["resource"]["regionId"]
+        output["Service"] = None
+        output["ResourceType"] = content["resource"]["resourceType"]
+        output["ResourceID"] = content["resource"]["id"]
+        output["Config"] = content
+        self.json_logs.append(output)
+
+
 def DataPipe():
     pipe_selector = {
         "aws_cloudtrail": CloudTrailPipe,
@@ -417,7 +434,8 @@ def DataPipe():
         "aws_network_firewall": NetworkFirewallPipe,
         "azure_test": AzureActivityPipe,
         "aws_eks": EKSPipe,
-        "github_assets": GithubAssetPipe
+        "github_assets": GithubAssetPipe,
+        "prisma_cloud": PrismaPipe,
     }
     return pipe_selector[get_app_id()]()
 
