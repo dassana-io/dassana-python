@@ -422,6 +422,37 @@ class PrismaPipe(Pipe):
         output["Config"] = content
         self.json_logs.append(output)
 
+class QualysPipe(Pipe):
+    def __init__(self):
+        super().__init__()
+    def push(self, content):
+        hosts = content["HOST_LIST_VM_DETECTION_OUTPUT"]["RESPONSE"]["HOST_LIST"]["HOST"]
+        if not isinstance(hosts, list):
+            hosts = [hosts]
+        for host in hosts:
+            if "METADATA" in host:
+                metadata = host["METADATA"]
+                for item in metadata.values():
+                    for attribute in item.get('ATTRIBUTE'):
+                        if attribute.get('NAME') == "latest/dynamic/instance-identity/document/accountId":
+                            output["ResourceContainer"] = attribute.get('VALUE')
+                        if attribute.get('NAME') == "latest/dynamic/instance-identity/document/region":
+                            output["Region"] = attribute.get('VALUE')
+            if "CLOUD_RESOURCE_ID" in host:
+                output["ResourceID"] = host["CLOUD_RESOURCE_ID"]
+            detections = host["DETECTION_LIST"]["DETECTION"]
+            if not isinstance(detections, list):
+                detections = [detections]
+            for detection in detections:
+                output = {}
+                output["Cloud"] = host.get('CLOUD_PROVIDER')
+                output["Service"] = host.get('CLOUD_SERVICE')
+                if output["Cloud"] == "AWS":
+                    output["ResourceType"] = "Instance"
+                output["ResourceName"] = None
+                output["Config"] = detection
+                self.json_logs.append(output)
+
 
 def DataPipe():
     pipe_selector = {
@@ -436,6 +467,7 @@ def DataPipe():
         "aws_eks": EKSPipe,
         "github_assets": GithubAssetPipe,
         "prisma_cloud": PrismaPipe,
+        "qualys": QualysPipe,
     }
     return pipe_selector[get_app_id()]()
 
