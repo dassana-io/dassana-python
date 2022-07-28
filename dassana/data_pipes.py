@@ -453,7 +453,6 @@ class QualysPipe(Pipe):
                 output["Config"] = detection
                 self.json_logs.append(output)
 
-
 def DataPipe():
     pipe_selector = {
         "aws_cloudtrail": CloudTrailPipe,
