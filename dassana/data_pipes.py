@@ -24,7 +24,6 @@ class Pipe(metaclass=ABCMeta):
         flush_res = forward_logs(self.json_logs)
         self.json_logs = []
         return flush_res
-        
 
 
 class CloudTrailPipe(Pipe):
@@ -340,54 +339,66 @@ class EKSPipe(Pipe):
 
             self.json_logs.append(fmt_log)
 
+
 class ConfigSnapshotPipe(Pipe):
     def __init__(self):
         super().__init__()
         self.bytes_so_far = 0
 
     def push(self, content):
-        output = {}
-        output["Cloud"] = "aws"
-        output["ResourceContainer"] = content["awsAccountID"]
-        output["Region"] = content["awsRegion"]
-        output["Service"] = content["resourceType"].split('::')[1]
-        try:
-            output["ResourceName"] = content["resourceName"]
-        except:
-            pass
-        output["Config"] = content
+        output = content
+        output["_dassana"] = {}
+        output["_dassana"]["Cloud"] = "aws"
+        output["_dassana"]["ResourceContainer"] = content["awsAccountId"]
+        output["_dassana"]["Region"] = content["awsRegion"]
+        output["_dassana"]["Service"] = content["resourceType"].split("::")[1]
+        output["_dassana"]["ResourceName"] = content.get("resourceName")
+
         self.json_logs.append(output)
+
         self.bytes_so_far += len(dumps(output))
-        if self.bytes_so_far >= (0.1 * 1048576):
+        if self.bytes_so_far >= (3000000):
             self.bytes_so_far = 0
             return True
         else:
             return False
+
 
 class ConfigChangePipe(Pipe):
     def __init__(self):
         super().__init__()
 
     def push(self, content):
-        items = content['Records']
+        items = content["Records"]
         for item in items:
             item["body"] = loads(item["body"])
             temp = loads(item["body"]["Message"])
             if temp["messageType"] != "ConfigurationItemChangeNotification":
                 continue
-            output = {}
-            output["Cloud"] = "aws"
-            output["ResourceContainer"] = temp["configurationItem"]["awsAccountId"]
-            output["Region"] = temp["configurationItem"]["awsRegion"]
-            output["Service"] = temp["configurationItem"]["resourceType"].split("::")[1]
-            output["ResourceType"] = temp["configurationItem"]["resourceType"]
-            output["ResourceID"] = temp["configurationItem"]["resourceId"]
+
+            output = temp["configurationItem"]
+            output["_dassana"] = {}
+            output["_dassana"]["Cloud"] = "aws"
+            output["_dassana"]["ResourceContainer"] = temp["configurationItem"][
+                "awsAccountId"
+            ]
+            output["_dassana"]["Region"] = temp["configurationItem"]["awsRegion"]
+            output["_dassana"]["Service"] = temp["configurationItem"][
+                "resourceType"
+            ].split("::")[1]
+            output["_dassana"]["ResourceType"] = temp["configurationItem"][
+                "resourceType"
+            ]
+            output["_dassana"]["ResourceID"] = temp["configurationItem"]["resourceId"]
             try:
-                output["ResourceName"] = temp["configurationItem"]["resourceName"]
+                output["_dassana"]["ResourceName"] = temp["configurationItem"][
+                    "resourceName"
+                ]
             except:
-                pass
-            output["Config"] = temp["configurationItem"]
+                output["_dassana"]["ResourceName"] = None
+
             self.json_logs.append(output)
+
 
 class GithubAssetPipe(Pipe):
     def __init__(self):
@@ -395,63 +406,80 @@ class GithubAssetPipe(Pipe):
 
     def push(self, content):
         for item in content:
-            output = {}
-            output["Cloud"] = "github"
-            output["ResourceContainer"] = item["owner"]["id"]
-            output["ResourceName"] = item["name"]
-            output["Region"] = "global"
-            output["Service"] = "git"
-            output["ResourceType"] = "repository"
-            output["ResourceID"] = item["id"]
-            output["Config"] = item
+            output = item
+            output["_dassana"] = {}
+            output["_dassana"]["Cloud"] = "github"
+            output["_dassana"]["ResourceContainer"] = item["owner"]["id"]
+            output["_dassana"]["ResourceName"] = item["name"]
+            output["_dassana"]["Region"] = "global"
+            output["_dassana"]["Service"] = "git"
+            output["_dassana"]["ResourceType"] = "repository"
+            output["_dassana"]["ResourceID"] = item["id"]
+
             self.json_logs.append(output)
+
 
 class PrismaPipe(Pipe):
     def __init__(self):
         super().__init__()
 
     def push(self, content):
-        output = {}
-        output["Cloud"] = content["resource"]["cloudType"]
-        output["ResourceContainer"] = content["resource"]["accountId"]
-        output["ResourceName"] = content["resource"]["name"]
-        output["Region"] = content["resource"]["regionId"]
-        output["Service"] = None
-        output["ResourceType"] = content["resource"]["resourceType"]
-        output["ResourceID"] = content["resource"]["id"]
-        output["Config"] = content
+        output = content
+        output["_dassana"] = {}
+        output["_dassana"]["Cloud"] = content["resource"]["cloudType"]
+        output["_dassana"]["ResourceContainer"] = content["resource"]["accountId"]
+        output["_dassana"]["ResourceName"] = content["resource"]["name"]
+        output["_dassana"]["Region"] = content["resource"]["regionId"]
+        output["_dassana"]["Service"] = None
+        output["_dassana"]["ResourceType"] = content["resource"]["resourceType"]
+        output["_dassana"]["ResourceID"] = content["resource"]["id"]
+
         self.json_logs.append(output)
+
 
 class QualysPipe(Pipe):
     def __init__(self):
         super().__init__()
+
     def push(self, content):
-        hosts = content["HOST_LIST_VM_DETECTION_OUTPUT"]["RESPONSE"]["HOST_LIST"]["HOST"]
+        hosts = content["HOST_LIST_VM_DETECTION_OUTPUT"]["RESPONSE"]["HOST_LIST"][
+            "HOST"
+        ]
         if not isinstance(hosts, list):
             hosts = [hosts]
         for host in hosts:
             if "METADATA" in host:
                 metadata = host["METADATA"]
                 for item in metadata.values():
-                    for attribute in item.get('ATTRIBUTE'):
-                        if attribute.get('NAME') == "latest/dynamic/instance-identity/document/accountId":
-                            output["ResourceContainer"] = attribute.get('VALUE')
-                        if attribute.get('NAME') == "latest/dynamic/instance-identity/document/region":
-                            output["Region"] = attribute.get('VALUE')
+                    for attribute in item.get("ATTRIBUTE"):
+                        if (
+                            attribute.get("NAME")
+                            == "latest/dynamic/instance-identity/document/accountId"
+                        ):
+                            resourceContainer = attribute.get("VALUE")
+                        if (
+                            attribute.get("NAME")
+                            == "latest/dynamic/instance-identity/document/region"
+                        ):
+                            region = attribute.get("VALUE")
             if "CLOUD_RESOURCE_ID" in host:
-                output["ResourceID"] = host["CLOUD_RESOURCE_ID"]
+                resourceID = host["CLOUD_RESOURCE_ID"]
             detections = host["DETECTION_LIST"]["DETECTION"]
             if not isinstance(detections, list):
                 detections = [detections]
             for detection in detections:
-                output = {}
-                output["Cloud"] = host.get('CLOUD_PROVIDER')
-                output["Service"] = host.get('CLOUD_SERVICE')
-                if output["Cloud"] == "AWS":
-                    output["ResourceType"] = "Instance"
-                output["ResourceName"] = None
-                output["Config"] = detection
+                output = detection
+                output["_dassana"] = {}
+                output["_dassana"]["Cloud"] = host.get("CLOUD_PROVIDER")
+                output["_dassana"]["Service"] = host.get("CLOUD_SERVICE")
+                output["_dassana"]["ResourceContainer"] = resourceContainer
+                output["_dassana"]["Region"] = region
+                output["_dassana"]["ResourceID"] = resourceID
+                if output["_dassana"]["Cloud"] == "AWS":
+                    output["_dassana"]["ResourceType"] = "Instance"
+                output["_dassana"]["ResourceName"] = None
                 self.json_logs.append(output)
+
 
 def DataPipe():
     pipe_selector = {
@@ -470,11 +498,9 @@ def DataPipe():
     }
     return pipe_selector[get_app_id()]()
 
+
 def ConfigPipe(one_time=True):
     if one_time:
         return ConfigSnapshotPipe()
-    else: 
+    else:
         return ConfigChangePipe()
-
-
-    
