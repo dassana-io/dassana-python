@@ -357,7 +357,7 @@ class ConfigSnapshotPipe(Pipe):
         self.json_logs.append(output)
 
         self.bytes_so_far += len(dumps(output))
-        if self.bytes_so_far >= (104857.6):
+        if self.bytes_so_far >= (3000000):
             self.bytes_so_far = 0
             return True
         else:
