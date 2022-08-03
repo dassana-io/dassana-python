@@ -347,14 +347,15 @@ class ConfigSnapshotPipe(Pipe):
 
     def push(self, content):
         output = content
+        output["_dassana"] = {}
         output["_dassana"]["Cloud"] = "aws"
-        output["_dassana"]["ResourceContainer"] = content["awsAccountID"]
+        output["_dassana"]["ResourceContainer"] = content["awsAccountId"]
         output["_dassana"]["Region"] = content["awsRegion"]
         output["_dassana"]["Service"] = content["resourceType"].split("::")[1]
         output["_dassana"]["ResourceName"] = content.get("resourceName")
 
         self.json_logs.append(output)
-        
+
         self.bytes_so_far += len(dumps(output))
         if self.bytes_so_far >= (104857.6):
             self.bytes_so_far = 0
@@ -374,16 +375,25 @@ class ConfigChangePipe(Pipe):
             temp = loads(item["body"]["Message"])
             if temp["messageType"] != "ConfigurationItemChangeNotification":
                 continue
-            
+
             output = temp["configurationItem"]
+            output["_dassana"] = {}
             output["_dassana"]["Cloud"] = "aws"
-            output["_dassana"]["ResourceContainer"] = temp["configurationItem"]["awsAccountId"]
+            output["_dassana"]["ResourceContainer"] = temp["configurationItem"][
+                "awsAccountId"
+            ]
             output["_dassana"]["Region"] = temp["configurationItem"]["awsRegion"]
-            output["_dassana"]["Service"] = temp["configurationItem"]["resourceType"].split("::")[1]
-            output["_dassana"]["ResourceType"] = temp["configurationItem"]["resourceType"]
+            output["_dassana"]["Service"] = temp["configurationItem"][
+                "resourceType"
+            ].split("::")[1]
+            output["_dassana"]["ResourceType"] = temp["configurationItem"][
+                "resourceType"
+            ]
             output["_dassana"]["ResourceID"] = temp["configurationItem"]["resourceId"]
             try:
-                output["_dassana"]["ResourceName"] = temp["configurationItem"]["resourceName"]
+                output["_dassana"]["ResourceName"] = temp["configurationItem"][
+                    "resourceName"
+                ]
             except:
                 output["_dassana"]["ResourceName"] = None
 
@@ -397,6 +407,7 @@ class GithubAssetPipe(Pipe):
     def push(self, content):
         for item in content:
             output = item
+            output["_dassana"] = {}
             output["_dassana"]["Cloud"] = "github"
             output["_dassana"]["ResourceContainer"] = item["owner"]["id"]
             output["_dassana"]["ResourceName"] = item["name"]
@@ -414,6 +425,7 @@ class PrismaPipe(Pipe):
 
     def push(self, content):
         output = content
+        output["_dassana"] = {}
         output["_dassana"]["Cloud"] = content["resource"]["cloudType"]
         output["_dassana"]["ResourceContainer"] = content["resource"]["accountId"]
         output["_dassana"]["ResourceName"] = content["resource"]["name"]
@@ -421,7 +433,7 @@ class PrismaPipe(Pipe):
         output["_dassana"]["Service"] = None
         output["_dassana"]["ResourceType"] = content["resource"]["resourceType"]
         output["_dassana"]["ResourceID"] = content["resource"]["id"]
-        
+
         self.json_logs.append(output)
 
 
@@ -457,6 +469,7 @@ class QualysPipe(Pipe):
                 detections = [detections]
             for detection in detections:
                 output = detection
+                output["_dassana"] = {}
                 output["_dassana"]["Cloud"] = host.get("CLOUD_PROVIDER")
                 output["_dassana"]["Service"] = host.get("CLOUD_SERVICE")
                 output["_dassana"]["ResourceContainer"] = resourceContainer
