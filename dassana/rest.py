@@ -5,6 +5,8 @@ from json import dumps
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from urllib3.exceptions import MaxRetryError
+from google.api_core import retry
+from google.cloud import pubsub_v1
 
 
 def forward_logs(
@@ -64,9 +66,22 @@ def forward_logs(
     all_ok = all(response.status_code == 200 for response in responses)
     total_docs = sum(response.get("docCount", 0) for response in res_objs)
 
+    ack = get_ackID()
+    if ack['ack_exists'] and all_ok:
+        acknowledge_delivery(ack['gcp_config'])   
+
     return {
         "batches": len(responses),
         "success": all_ok,
         "total_docs": total_docs,
         "responses": res_objs,
     }
+
+def acknowledge_delivery(gcp_config):
+    subscriber = pubsub_v1.SubscriberClient()
+    subscription_path = subscriber.subscription_path(gcp_config['project_id'], gcp_config['subscription_id'])
+
+    ack_ids = [gcp_config['ack_id']]
+    subscriber.acknowledge(
+        request={"subscription": subscription_path, "ack_ids": ack_ids}
+    )
