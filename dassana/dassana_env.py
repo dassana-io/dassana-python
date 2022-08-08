@@ -40,3 +40,8 @@ def get_batch_size():
         raise ValueError("DASSANA_BATCH_SIZE environment variable is not an integer.")
 
     return int(batch_size)
+
+def get_ackID():
+    if "GCP_ACK_ID" not in os.environ:
+        return {"ack_exists": False, "gcp_config": {}}
+    return {"ack_exists": True, "gcp_config": {"ack_id": os.environ["GCP_ACK_ID"], "project_id": os.environ["GCP_PROJECT_ID"], "subscription_id": os.environ["GCP_SUBSCRIPTION_ID"]}}
