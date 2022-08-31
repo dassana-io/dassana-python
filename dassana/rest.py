@@ -5,15 +5,17 @@ from json import dumps
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from urllib3.exceptions import MaxRetryError
+from google.cloud import pubsub_v1
 
 
 def forward_logs(
-    log_data,
-    endpoint=get_endpoint(),
-    token=get_token(),
-    app_id=get_app_id(),
-    use_ssl=get_ssl(),
+    log_data
 ):
+
+    endpoint=get_endpoint()
+    app_id=get_app_id()
+    use_ssl=get_ssl()
+    token = get_token()
 
     headers = {
         "x-dassana-token": token,
@@ -46,18 +48,20 @@ def forward_logs(
         bytes_so_far += len(dumps(log))
         if bytes_so_far > batch_size * 1048576:
             payload_compressed = gzip.compress(payload.encode("utf-8"))
-            response = http.post(
+            response = requests.post(
                 endpoint, headers=headers, data=payload_compressed, verify=use_ssl
             )
+            print(response)
             bytes_so_far = 0
             payload = ""
             responses.append(response)
 
     if bytes_so_far > 0:
         payload_compressed = gzip.compress(payload.encode("utf-8"))
-        response = http.post(
+        response = requests.post(
             endpoint, headers=headers, data=payload_compressed, verify=use_ssl
         )
+        print(response)
         responses.append(response)
 
     res_objs = [response.json() for response in responses]
@@ -70,3 +74,18 @@ def forward_logs(
         "total_docs": total_docs,
         "responses": res_objs,
     }
+
+def acknowledge_delivery():
+    try:
+        ack_id = get_ackID()
+    except:
+        return
+
+    subscriber = pubsub_v1.SubscriberClient()
+    subscription_path = subscriber.subscription_path(get_gcp_project_id(), get_gcp_subscription_id())
+
+    ack_ids = [ack_id]
+    subscriber.acknowledge(
+        request={"subscription": subscription_path, "ack_ids": ack_ids}
+    )
+
