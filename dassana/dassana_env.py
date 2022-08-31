@@ -43,5 +43,21 @@ def get_batch_size():
 
 def get_ackID():
     if "GCP_ACK_ID" not in os.environ:
-        return {"ack_exists": False, "gcp_config": {}}
-    return {"ack_exists": True, "gcp_config": {"ack_id": os.environ["GCP_ACK_ID"], "project_id": os.environ["GCP_PROJECT_ID"], "subscription_id": os.environ["GCP_SUBSCRIPTION_ID"]}}
+        raise KeyError(
+            "GCP_ACK_ID environment variable is not set."
+        )
+    return os.environ["GCP_ACK_ID"]
+
+def get_gcp_project_id():
+    if "DASSANA_GCP_PRJ_ID" not in os.environ:
+        raise KeyError(
+            "DASSANA_GCP_PRJ_ID environment variable is not set."
+        )
+    return os.environ["DASSANA_GCP_PRJ_ID"]
+
+def get_gcp_subscription_id():
+    if "GCP_SUBSCRIPTION_ID" not in os.environ:
+        raise KeyError(
+            "GCP_SUBSCRIPTION_ID environment variable is not set."
+        )
+    return os.environ["GCP_SUBSCRIPTION_ID"]
