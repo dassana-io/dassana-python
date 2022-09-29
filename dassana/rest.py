@@ -55,7 +55,7 @@ def forward_logs(
             response = requests.post(
                 endpoint, headers=headers, data=payload_compressed, verify=use_ssl
             )
-            print(response)
+            print(response.text)
             bytes_so_far = 0
             payload = ""
             responses.append(response)
@@ -65,7 +65,7 @@ def forward_logs(
         response = requests.post(
             endpoint, headers=headers, data=payload_compressed, verify=use_ssl
         )
-        print(response)
+        print(response.text)
         responses.append(response)
 
     res_objs = [response.json() for response in responses]
