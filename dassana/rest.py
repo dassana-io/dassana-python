@@ -16,6 +16,7 @@ def forward_logs(
     app_id=get_app_id()
     use_ssl=get_ssl()
     token = get_token()
+    magic_word = get_magic_word()
 
     headers = {
         "x-dassana-token": token,
@@ -23,6 +24,9 @@ def forward_logs(
         "Content-type": "application/x-ndjson",
         "Content-encoding": "gzip",
     }
+
+    if magic_word:
+        headers['x-dassana-magic-word'] = magic_word
 
     retry = Retry(
         total=3,
