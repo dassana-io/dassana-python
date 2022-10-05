@@ -52,7 +52,7 @@ def forward_logs(
         bytes_so_far += len(dumps(log))
         if bytes_so_far > batch_size * 1048576:
             payload_compressed = gzip.compress(payload.encode("utf-8"))
-            response = requests.post(
+            response = http.post(
                 endpoint, headers=headers, data=payload_compressed, verify=use_ssl
             )
             print(response.text)
@@ -62,15 +62,21 @@ def forward_logs(
 
     if bytes_so_far > 0:
         payload_compressed = gzip.compress(payload.encode("utf-8"))
-        response = requests.post(
+        response = http.post(
             endpoint, headers=headers, data=payload_compressed, verify=use_ssl
         )
         print(response.text)
         responses.append(response)
 
-    res_objs = [response.json() for response in responses]
-    all_ok = all(response.status_code == 200 for response in responses)
+    try:
+        res_objs = [response.json() for response in responses]
+        all_ok = all(response.status_code == 200 for response in responses)
+    except:
+        res_objs = []
+        all_ok = False
+        
     total_docs = sum(response.get("docCount", 0) for response in res_objs)
+
 
     return {
         "batches": len(responses),
