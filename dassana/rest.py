@@ -1,6 +1,5 @@
 import requests
 import gzip
-import logging
 from .dassana_env import *
 from json import dumps
 from requests.adapters import HTTPAdapter
@@ -9,7 +8,6 @@ from urllib3.exceptions import MaxRetryError
 from google.cloud import pubsub_v1
 
 
-logging.basicConfig(level=logging.INFO)
 def datetime_handler(x):
     if isinstance(x, datetime.datetime):
         return x.isoformat()
@@ -68,7 +66,7 @@ def forward_logs(
 
     if bytes_so_far > 0:
         payload_compressed = gzip.compress(payload.encode("utf-8"))
-        response = http.post(
+        response = requests.post(
             endpoint, headers=headers, data=payload_compressed, verify=use_ssl
         )
         print(response.text)
