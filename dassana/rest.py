@@ -1,5 +1,6 @@
 import requests
 import gzip
+import logging
 from .dassana_env import *
 from json import dumps
 from requests.adapters import HTTPAdapter
@@ -8,6 +9,11 @@ from urllib3.exceptions import MaxRetryError
 from google.cloud import pubsub_v1
 
 
+logging.basicConfig(level=logging.INFO)
+def datetime_handler(x):
+    if isinstance(x, datetime.datetime):
+        return x.isoformat()
+    raise TypeError("Unknown type")
 def forward_logs(
     log_data
 ):
@@ -40,7 +46,7 @@ def forward_logs(
     http.mount("http://", adapter)
     http.mount("https://", adapter)
 
-    payload = "\n".join(dumps(log) for log in log_data) + "\n"
+    payload = "\n".join(dumps(log, default=datetime_handler) for log in log_data) + "\n"
 
     bytes_so_far = 0
     payload = ""
@@ -48,11 +54,11 @@ def forward_logs(
     batch_size = get_batch_size()
 
     for log in log_data:
-        payload += dumps(log) + "\n"
-        bytes_so_far += len(dumps(log))
+        payload += dumps(log, default=datetime_handler) + "\n"
+        bytes_so_far += len(dumps(log, default=datetime_handler))
         if bytes_so_far > batch_size * 1048576:
             payload_compressed = gzip.compress(payload.encode("utf-8"))
-            response = requests.post(
+            response = requests.post(    
                 endpoint, headers=headers, data=payload_compressed, verify=use_ssl
             )
             print(response.text)
@@ -62,15 +68,18 @@ def forward_logs(
 
     if bytes_so_far > 0:
         payload_compressed = gzip.compress(payload.encode("utf-8"))
-        response = requests.post(
+        response = http.post(
             endpoint, headers=headers, data=payload_compressed, verify=use_ssl
         )
         print(response.text)
         responses.append(response)
 
+    
+
     res_objs = [response.json() for response in responses]
     all_ok = all(response.status_code == 200 for response in responses)
     total_docs = sum(response.get("docCount", 0) for response in res_objs)
+
 
     return {
         "batches": len(responses),
