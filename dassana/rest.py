@@ -8,6 +8,11 @@ from urllib3.exceptions import MaxRetryError
 from google.cloud import pubsub_v1
 
 
+def datetime_handler(val):
+    if isinstance(val, datetime.datetime):
+        return val.isoformat()
+    return str(val)
+
 def forward_logs(
     log_data
 ):
@@ -40,16 +45,15 @@ def forward_logs(
     http.mount("http://", adapter)
     http.mount("https://", adapter)
 
-    payload = "\n".join(dumps(log) for log in log_data) + "\n"
-
     bytes_so_far = 0
     payload = ""
     responses = []
     batch_size = get_batch_size()
 
     for log in log_data:
-        payload += dumps(log) + "\n"
-        bytes_so_far += len(dumps(log))
+        payload_line = dumps(log, default=datetime_handler)
+        payload += payload_line + "\n"
+        bytes_so_far += len(payload_line)
         if bytes_so_far > batch_size * 1048576:
             payload_compressed = gzip.compress(payload.encode("utf-8"))
             response = requests.post(
@@ -68,9 +72,15 @@ def forward_logs(
         print(response.text)
         responses.append(response)
 
-    res_objs = [response.json() for response in responses]
-    all_ok = all(response.status_code == 200 for response in responses)
-    total_docs = sum(response.get("docCount", 0) for response in res_objs)
+    all_ok = True
+    total_docs = 0
+    res_objs = []
+    for response in responses:
+        resp_ok = response.status_code == 200
+        all_ok = all_ok & resp_ok
+        if resp_ok:
+            res_objs.append(response.json())
+            total_docs += response.get("docCount", 0)
 
     return {
         "batches": len(responses),
