@@ -80,8 +80,9 @@ def forward_logs(
         resp_ok = response.status_code == 200
         all_ok = all_ok & resp_ok
         if resp_ok:
-            res_objs.append(response.json())
-            total_docs += sum(response.get("docCount", 0) for response in res_objs)
+            resp_obj = response.json()
+            res_objs.append(resp_obj)
+            total_docs = total_docs + resp_obj.get("docCount", 0)
 
     return {
         "batches": len(responses),
