@@ -1,5 +1,6 @@
 import requests
 import gzip
+import datetime
 from .dassana_env import *
 from json import dumps
 from requests.adapters import HTTPAdapter
@@ -80,7 +81,7 @@ def forward_logs(
         all_ok = all_ok & resp_ok
         if resp_ok:
             res_objs.append(response.json())
-            total_docs += response.get("docCount", 0)
+            total_docs += sum(response.get("docCount", 0) for response in res_objs)
 
     return {
         "batches": len(responses),
