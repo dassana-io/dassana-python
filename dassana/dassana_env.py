@@ -61,3 +61,8 @@ def get_gcp_subscription_id():
             "GCP_SUBSCRIPTION_ID environment variable is not set."
         )
     return os.environ["GCP_SUBSCRIPTION_ID"]
+
+def get_magic_word():
+    if "DASSANA_DEBUG_MAGIC_WORD" not in os.environ:
+        return None
+    return os.environ["DASSANA_DEBUG_MAGIC_WORD"]

@@ -1,5 +1,6 @@
 import requests
 import gzip
+import datetime
 from .dassana_env import *
 from json import dumps
 from requests.adapters import HTTPAdapter
@@ -7,6 +8,11 @@ from requests.packages.urllib3.util.retry import Retry
 from urllib3.exceptions import MaxRetryError
 from google.cloud import pubsub_v1
 
+
+def datetime_handler(val):
+    if isinstance(val, datetime.datetime):
+        return val.isoformat()
+    return str(val)
 
 def forward_logs(
     log_data
@@ -16,6 +22,7 @@ def forward_logs(
     app_id=get_app_id()
     use_ssl=get_ssl()
     token = get_token()
+    magic_word = get_magic_word()
 
     headers = {
         "x-dassana-token": token,
@@ -23,6 +30,9 @@ def forward_logs(
         "Content-type": "application/x-ndjson",
         "Content-encoding": "gzip",
     }
+
+    if magic_word:
+        headers['x-dassana-magic-word'] = magic_word
 
     retry = Retry(
         total=3,
@@ -36,22 +46,21 @@ def forward_logs(
     http.mount("http://", adapter)
     http.mount("https://", adapter)
 
-    payload = "\n".join(dumps(log) for log in log_data) + "\n"
-
     bytes_so_far = 0
     payload = ""
     responses = []
     batch_size = get_batch_size()
 
     for log in log_data:
-        payload += dumps(log) + "\n"
-        bytes_so_far += len(dumps(log))
+        payload_line = dumps(log, default=datetime_handler)
+        payload += payload_line + "\n"
+        bytes_so_far += len(payload_line)
         if bytes_so_far > batch_size * 1048576:
             payload_compressed = gzip.compress(payload.encode("utf-8"))
             response = requests.post(
                 endpoint, headers=headers, data=payload_compressed, verify=use_ssl
             )
-            print(response)
+            print(response.text)
             bytes_so_far = 0
             payload = ""
             responses.append(response)
@@ -61,12 +70,19 @@ def forward_logs(
         response = requests.post(
             endpoint, headers=headers, data=payload_compressed, verify=use_ssl
         )
-        print(response)
+        print(response.text)
         responses.append(response)
 
-    res_objs = [response.json() for response in responses]
-    all_ok = all(response.status_code == 200 for response in responses)
-    total_docs = sum(response.get("docCount", 0) for response in res_objs)
+    all_ok = True
+    total_docs = 0
+    res_objs = []
+    for response in responses:
+        resp_ok = response.status_code == 200
+        all_ok = all_ok & resp_ok
+        if resp_ok:
+            resp_obj = response.json()
+            res_objs.append(resp_obj)
+            total_docs = total_docs + resp_obj.get("docCount", 0)
 
     return {
         "batches": len(responses),
