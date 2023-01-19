@@ -3,11 +3,14 @@ import gzip
 import datetime
 from .dassana_env import *
 from json import dumps
+import urllib3
+from urllib3.exceptions import InsecureRequestWarning
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from urllib3.exceptions import MaxRetryError
 from google.cloud import pubsub_v1
 
+urllib3.disable_warnings(category=InsecureRequestWarning)
 
 def datetime_handler(val):
     if isinstance(val, datetime.datetime):
@@ -58,7 +61,7 @@ def forward_logs(
         if bytes_so_far > batch_size * 1048576:
             payload_compressed = gzip.compress(payload.encode("utf-8"))
             response = requests.post(
-                endpoint, headers=headers, data=payload_compressed, verify=use_ssl
+                endpoint, headers=headers, data=payload_compressed, verify=False
             )
             print(response.text)
             bytes_so_far = 0
@@ -68,7 +71,7 @@ def forward_logs(
     if bytes_so_far > 0:
         payload_compressed = gzip.compress(payload.encode("utf-8"))
         response = requests.post(
-            endpoint, headers=headers, data=payload_compressed, verify=use_ssl
+            endpoint, headers=headers, data=payload_compressed, verify=False
         )
         print(response.text)
         responses.append(response)
