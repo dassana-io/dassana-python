@@ -26,7 +26,10 @@ def get_token():
 
 
 def get_ssl():
-    return get_endpoint().startswith("https")
+    if get_endpoint().__contains__("svc.cluster.local:"):
+        return get_endpoint().startswith("https") 
+    else:
+        return False  
 
 
 def get_batch_size():

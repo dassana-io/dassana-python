@@ -61,7 +61,7 @@ def forward_logs(
         if bytes_so_far > batch_size * 1048576:
             payload_compressed = gzip.compress(payload.encode("utf-8"))
             response = requests.post(
-                endpoint, headers=headers, data=payload_compressed, verify=False
+                endpoint, headers=headers, data=payload_compressed, verify=use_ssl
             )
             print(response.text)
             bytes_so_far = 0
@@ -71,7 +71,7 @@ def forward_logs(
     if bytes_so_far > 0:
         payload_compressed = gzip.compress(payload.encode("utf-8"))
         response = requests.post(
-            endpoint, headers=headers, data=payload_compressed, verify=False
+            endpoint, headers=headers, data=payload_compressed, verify=use_ssl
         )
         print(response.text)
         responses.append(response)
