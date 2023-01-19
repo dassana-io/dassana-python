@@ -3,14 +3,11 @@ import gzip
 import datetime
 from .dassana_env import *
 from json import dumps
-import urllib3
-from urllib3.exceptions import InsecureRequestWarning
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
 from urllib3.exceptions import MaxRetryError
 from google.cloud import pubsub_v1
 
-urllib3.disable_warnings(category=InsecureRequestWarning)
 
 def datetime_handler(val):
     if isinstance(val, datetime.datetime):

@@ -26,11 +26,8 @@ def get_token():
 
 
 def get_ssl():
-    if get_endpoint().__contains__("svc.cluster.local:"):
-        return get_endpoint().startswith("https") 
-    else:
-        return False  
-
+  endpoint=get_endpoint()
+  return endpoint.startswith("https") and not endpoint.__contains__("svc.cluster.local:")
 
 def get_batch_size():
     if "DASSANA_BATCH_SIZE" not in os.environ:
