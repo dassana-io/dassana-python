@@ -163,7 +163,7 @@ dassana_token = get_dassana_token()
 os.environ["DASSANA_TOKEN"] = dassana_token
 
 def report_status(status, additionalContext, timeTakenInSec, recordsIngested):
-    reportingURL = f"https://{app_url}/app/prisma_cloud/status"
+    reportingURL = f"https://{app_url}/app/{app_id}/status"
 
     headers = {
         "x-dassana-tenant-id": tenant_id,
