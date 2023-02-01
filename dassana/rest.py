@@ -102,7 +102,7 @@ def get_ingestion_config():
         "x-dassana-tenant-id": tenant_id,
         "Authorization": f"Bearer {access_token}", 
     }
-    if app_url.endswith("svc.cluster.local:"+ os.environ.get('DASSANA_APP_SERVICE_PORT')):
+    if app_url.endswith("svc.cluster.local:443"):
         response = requests.request("GET", url, headers=headers, verify=False)
         try:
             ingestion_config = response.json()[0] 
@@ -126,7 +126,7 @@ def patch_ingestion_config(payload):
         "x-dassana-tenant-id": tenant_id,
         "Authorization": f"Bearer {access_token}",
     }
-    if app_url.endswith("svc.cluster.local:"+ os.environ.get('DASSANA_APP_SERVICE_PORT')):
+    if app_url.endswith("svc.cluster.local:443"):
         response = requests.request("PATCH", url, headers=headers, json=payload, verify=False)
         snyk_token=response.json()
         return snyk_token
@@ -143,7 +143,7 @@ def get_dassana_token():
         "x-dassana-tenant-id": tenant_id,
         "Authorization": f"Bearer {access_token}",
     }
-    if app_url.endswith("svc.cluster.local:"+ os.environ.get('DASSANA_APP_SERVICE_PORT')):
+    if app_url.endswith("svc.cluster.local:443"):
 
         response = requests.request("GET", url, headers=headers, verify=False)
         try:
@@ -181,7 +181,7 @@ def report_status(status, additionalContext, timeTakenInSec, recordsIngested):
 
     # logging.info(f"Reporting headers: {json.dumps(headers)}")
     logging.info(f"Reporting status: {json.dumps(payload)}")
-    if app_url.endswith("svc.cluster.local:"+ os.environ.get('DASSANA_APP_SERVICE_PORT')):
+    if app_url.endswith("svc.cluster.local:443"):
         resp = requests.Session().post(reportingURL, headers=headers, json=payload, verify=False)
         logging.info(f"Report request status: {resp.status_code}")
     else:
