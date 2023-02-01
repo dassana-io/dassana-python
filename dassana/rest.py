@@ -117,9 +117,8 @@ def get_ingestion_config():
             raise InternalError(url, response.json())
         return ingestion_config
 
-ingestion_config_id = get_ingestion_config()['id']
-
 def patch_ingestion_config(payload):
+    ingestion_config_id = get_ingestion_config()['id']
     url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
     access_token = get_access_token()
     headers = {
