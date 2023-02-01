@@ -16,7 +16,7 @@ from google.cloud import pubsub_v1
 logging.basicConfig(level=logging.INFO)
 
 auth_url = os.environ.get("DASSANA_JWT_ISSUER")
-app_url = os.environ.get("DASSANA_APP_SERVICE_HOST") + ":" + os.environ.get('DASSANA_APP_SERVICE_PORT')
+app_url = os.environ.get("DASSANA_APP_SERVICE_HOST")
 service_client_id = os.environ.get("DASSANA_CLIENT_ID")
 tenant_id = os.environ.get("DASSANA_TENANT_ID")
 debug = int(os.environ.get("DASSANA_DEBUG", 0))
