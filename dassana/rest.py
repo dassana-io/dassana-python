@@ -197,7 +197,6 @@ def forward_logs(log_data,type="findings"):
         endpoint = f"{os.environ['DASSANA_ENDPOINT']}/findings"
     elif type == 'assets':
         endpoint = f"{os.environ['DASSANA_ENDPOINT']}/assets"
-        print("ass")
     elif type == 'events':
         endpoint = f"{os.environ['DASSANA_ENDPOINT']}/events"
 
