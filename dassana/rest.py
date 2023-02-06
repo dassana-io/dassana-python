@@ -192,11 +192,15 @@ def datetime_handler(val):
         return val.isoformat()
     return str(val)
 
-def forward_logs(
-    log_data
-):
+def forward_logs(log_data,type="findings"):    
+    if type == 'findings':
+        endpoint = f"{os.environ['DASSANA_ENDPOINT']}/findings"
+    elif type == 'assets':
+        endpoint = f"{os.environ['DASSANA_ENDPOINT']}/assets"
+        print("ass")
+    elif type == 'events':
+        endpoint = f"{os.environ['DASSANA_ENDPOINT']}/events"
 
-    endpoint=get_endpoint()
     app_id=get_app_id()
     use_ssl=get_ssl()
     token = get_token()
