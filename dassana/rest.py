@@ -20,6 +20,7 @@ app_url = os.environ.get("DASSANA_APP_SERVICE_HOST")
 service_client_id = os.environ.get("DASSANA_CLIENT_ID")
 tenant_id = os.environ.get("DASSANA_TENANT_ID")
 debug = int(os.environ.get("DASSANA_DEBUG", 0))
+ingestion_config_id = os.environ.get("DASSANA_INGESTION_CONFIG_ID")
 
 class AuthenticationError(Exception):
     """Exception Raised when credentials in configuration are invalid"""
@@ -95,8 +96,8 @@ def get_access_token():
 
 app_id = get_app_id()
 
-def get_ingestion_config():
-    url = f"https://{app_url}/app/{app_id}/ingestionConfig"
+def get_ingestion_config(ingestion_config_id):
+    url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
     access_token = get_access_token()
     headers = {
         "x-dassana-tenant-id": tenant_id,
@@ -105,20 +106,19 @@ def get_ingestion_config():
     if app_url.endswith("svc.cluster.local:443"):
         response = requests.request("GET", url, headers=headers, verify=False)
         try:
-            ingestion_config = response.json()[0] 
+            ingestion_config = response.json()
         except:
             raise InternalError(url, response.json())
         return ingestion_config
     else:
         response = requests.request("GET", url, headers=headers)
         try:
-            ingestion_config = response.json()[0] 
+            ingestion_config = response.json() 
         except:
             raise InternalError(url, response.json())
         return ingestion_config
 
-def patch_ingestion_config(payload):
-    ingestion_config_id = get_ingestion_config()['id']
+def patch_ingestion_config(payload, ingestion_config_id):
     url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
     access_token = get_access_token()
     headers = {
@@ -285,4 +285,3 @@ def acknowledge_delivery():
     subscriber.acknowledge(
         request={"subscription": subscription_path, "ack_ids": ack_ids}
     )
-

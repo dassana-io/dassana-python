@@ -66,3 +66,8 @@ def get_magic_word():
     if "DASSANA_DEBUG_MAGIC_WORD" not in os.environ:
         return None
     return os.environ["DASSANA_DEBUG_MAGIC_WORD"]
+
+def get_ingestion_config():
+    if "DASSANA_DEBUG_MAGIC_WORD" not in os.environ:
+        return None
+    return os.environ["DASSANA_INGESTION_CONFIG_ID"]
