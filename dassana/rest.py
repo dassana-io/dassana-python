@@ -72,12 +72,7 @@ def get_access_token():
                 "client_secret": get_client_secret(),
             },
             verify=False
-        )
-        try:
-            access_token = response.json()["access_token"]
-        except:
-            raise InternalError(url, response.json())
-        return access_token
+        )  
     else:
         response = requests.post(
             url,
@@ -87,13 +82,14 @@ def get_access_token():
                 "client_secret": get_client_secret(),
             }
         )
-        try:
-            access_token = response.json()["access_token"]
-        except:
-            raise InternalError(url, response.json())
-        return access_token
+    try:
+        access_token = response.json()["access_token"]
+    except:
+        raise InternalError(url, response.json())
+    return access_token
 
 app_id = get_app_id()
+ingestion_config_id = get_ingestion_config_id()
 
 def get_ingestion_config(ingestion_config_id):
     url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
@@ -104,18 +100,13 @@ def get_ingestion_config(ingestion_config_id):
     }
     if app_url.endswith("svc.cluster.local:443"):
         response = requests.request("GET", url, headers=headers, verify=False)
-        try:
-            ingestion_config = response.json()
-        except:
-            raise InternalError(url, response.json())
-        return ingestion_config
     else:
         response = requests.request("GET", url, headers=headers)
-        try:
-            ingestion_config = response.json() 
-        except:
-            raise InternalError(url, response.json())
-        return ingestion_config
+    try:
+        ingestion_config = response.json() 
+    except:
+        raise InternalError(url, response.json())
+    return ingestion_config
 
 def patch_ingestion_config(payload, ingestion_config_id):
     url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
@@ -126,12 +117,10 @@ def patch_ingestion_config(payload, ingestion_config_id):
     }
     if app_url.endswith("svc.cluster.local:443"):
         response = requests.request("PATCH", url, headers=headers, json=payload, verify=False)
-        snyk_token=response.json()
-        return snyk_token
     else:
         response = requests.request("PATCH", url, headers=headers, json=payload)
-        snyk_token=response.json()
-        return snyk_token
+    snyk_token=response.json()
+    return snyk_token
 
 def get_dassana_token():
     access_token = get_access_token()
@@ -142,26 +131,20 @@ def get_dassana_token():
         "Authorization": f"Bearer {access_token}",
     }
     if app_url.endswith("svc.cluster.local:443"):
-
         response = requests.request("GET", url, headers=headers, verify=False)
-        try:
-            token = response.json()[0]["value"]
-        except:
-            raise InternalError(url, response.json())
-        return token
     else:
         response = requests.request("GET", url, headers=headers)
-        try:
-            token = response.json()[0]["value"]
-        except:
-            raise InternalError(url, response.json())
-        return token
+    try:
+        token = response.json()[0]["value"]
+    except:
+        raise InternalError(url, response.json())
+    return token
 
 dassana_token = get_dassana_token()
 os.environ["DASSANA_TOKEN"] = dassana_token
 
-def report_status(status, additionalContext, timeTakenInSec, recordsIngested):
-    reportingURL = f"https://{app_url}/app/{app_id}/status"
+def report_status(status, additionalContext, timeTakenInSec, recordsIngested, ingestion_config_id):
+    reportingURL = f"https://{app_url}/app/v1/{app_id}/status"
 
     headers = {
         "x-dassana-tenant-id": tenant_id,
@@ -172,6 +155,7 @@ def report_status(status, additionalContext, timeTakenInSec, recordsIngested):
         "status": status,
         "timeTakenInSec": int(timeTakenInSec),
         "recordsIngested": recordsIngested,
+        "ingestionConfigId": ingestion_config_id
     }
 
     if additionalContext:

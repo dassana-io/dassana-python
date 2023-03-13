@@ -70,4 +70,4 @@ def get_magic_word():
 def get_ingestion_config_id():
     if "DASSANA_INGESTION_CONFIG_ID" not in os.environ:
         return None
-    return os.environ["DASSANA_INGESTION_CONFIG_ID"]
+    return str(os.environ["DASSANA_INGESTION_CONFIG_ID"])
