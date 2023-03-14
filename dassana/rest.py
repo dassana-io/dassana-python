@@ -160,8 +160,8 @@ def get_dassana_token():
 dassana_token = get_dassana_token()
 os.environ["DASSANA_TOKEN"] = dassana_token
 
-def report_status(status, additionalContext, timeTakenInSec, recordsIngested):
-    reportingURL = f"https://{app_url}/app/{app_id}/status"
+def report_status(status, additionalContext, timeTakenInSec, recordsIngested, ingestion_config_id):
+    reportingURL = f"https://{app_url}/app/v1/{app_id}/status"
 
     headers = {
         "x-dassana-tenant-id": tenant_id,
@@ -172,6 +172,7 @@ def report_status(status, additionalContext, timeTakenInSec, recordsIngested):
         "status": status,
         "timeTakenInSec": int(timeTakenInSec),
         "recordsIngested": recordsIngested,
+        "ingestionConfigId": ingestion_config_id
     }
 
     if additionalContext:
