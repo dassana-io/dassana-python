@@ -383,4 +383,4 @@ def post_dassana_query(query: str, timeRange: TimeRange) -> list:
     except KeyError as e:
         logging.error(f"No such key '{e}' found while triggering dassana query")
     except Exception as e:
-        logging.error(f"An exception occurred while triggering dassana query")
+        logging.error(f"An exception occurred while triggering dassana query {e}")
