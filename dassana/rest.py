@@ -12,6 +12,8 @@ from kubernetes import client, config
 from requests.packages.urllib3.util.retry import Retry
 from urllib3.exceptions import MaxRetryError
 from google.cloud import pubsub_v1
+import jwt
+import time
 
 logging.basicConfig(level=logging.INFO)
 
@@ -47,6 +49,121 @@ class InternalError(Exception):
 
     def __str__(self):
         return json.dumps({"source": self.source, "message": self.message})
+
+class TimeRange:
+
+    def __new__(self, timeRangeType):
+
+        class AbsoluteTimeRange:
+
+            def __init__(self):
+                pass
+
+            startTime = None
+            endTime = None
+
+            def setStartTime(self, startTime):
+                self.startTime = startTime
+                return self
+
+            def setEndTime(self, endTime):
+                self.endTime = endTime
+                return self
+
+            def getStartTime(self):
+                return self.startTime
+
+            def getEndTime(self):
+                return self.endTime
+
+            def getTimeRangeDict(self):
+                timeDict = dict()
+                timeDict["type"] = timeRangeType
+                timeDict["startTime"]= self.startTime
+                timeDict["endTime"] = self.endTime
+                return timeDict
+
+            def __str__(self) -> str:
+                return (f"Range Type : {timeRangeType},\nStart Time : {self.startTime},\nEnd Time : {self.endTime}")
+
+        class RelativeTimeRange:
+
+            unit = None
+            amount = None
+
+            def __init__(self):
+                pass
+
+            def setAmount(self, amount):
+                self.amount = amount
+                return self
+
+            def setUnit(self, unit):
+                self.unit = unit
+                return self
+
+            def getAmount(self):
+                return self.amount
+
+            def getUnit(self):
+                return self.unit
+
+            def getTimeRangeDict(self):
+                timeDict = dict()
+                timeDict["type"] = timeRangeType
+                timeDict["amount"]= self.amount
+                timeDict["unit"] = self.unit
+                return timeDict
+
+            def __str__(self) -> str:
+                return (f"Range Type : {timeRangeType},\nAmount : {self.amount},\nUnit : {self.unit}")
+
+            # return RelativeTimeRange()
+
+        if timeRangeType=='absolute':
+            return AbsoluteTimeRange()
+        elif timeRangeType=='relative':
+            return RelativeTimeRange()
+
+    def getTimeRangeDict(self):
+        pass
+
+
+def refreshDassanaToken(token):
+    decoded_token = jwt.decode(token, key=None, options={"verify_signature":False})
+
+    # Less than 3 minutes to expiry, refresh
+    if decoded_token.get('exp') - int(time.time()) < 180:
+        return get_access_token()
+    return token
+
+def post_dassana_query(query: str, timeRange: TimeRange) -> list:
+    try:
+        token = get_access_token()
+        #refresh
+        token = refreshDassanaToken(token)
+        decoded = jwt.decode(token, key=None, options={"verify_signature":False})
+        domain = (str(decoded["aud"]).split(".")[2])
+
+        requestHeader = {
+            "content-type" : "application/json",
+            "Authorization" : "Bearer"+" "+token,
+            "Accept" : "application/json",
+            "x-dassana-tenant-id" : tenant_id
+        }
+
+        requestBody = dict()
+        dict["query"] = query
+        dict["timeRange"] = timeRange.getTimeRangeDict()
+
+        response = requests.request("POST", f"https://dquery.dassana.{domain}/query", headers=requestHeader, json=requestBody).text
+        responseDict = json.loads(response)
+        return responseDict["items"]
+
+    except KeyError as e:
+        logging.error(f"No such key '{e}' found while triggering dassana query")
+    except Exception as e:
+        logging.error(f"An exception occurred while triggering dassana query")
 
 def get_client_secret():
     if os.getenv("KUBERNETES_SERVICE_HOST"):
