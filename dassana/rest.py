@@ -62,11 +62,11 @@ class TimeRange:
             startTime = None
             endTime = None
 
-            def setStartTime(self, startTime):
+            def setStartTime(self, startTime: int):
                 self.startTime = startTime
                 return self
 
-            def setEndTime(self, endTime):
+            def setEndTime(self, endTime: int):
                 self.endTime = endTime
                 return self
 
@@ -94,11 +94,11 @@ class TimeRange:
             def __init__(self):
                 pass
 
-            def setAmount(self, amount):
+            def setAmount(self, amount: int):
                 self.amount = amount
                 return self
 
-            def setUnit(self, unit):
+            def setUnit(self, unit: str):
                 self.unit = unit
                 return self
 
@@ -127,43 +127,6 @@ class TimeRange:
 
     def getTimeRangeDict(self):
         pass
-
-
-def refreshDassanaToken(token):
-    decoded_token = jwt.decode(token, key=None, options={"verify_signature":False})
-
-    # Less than 3 minutes to expiry, refresh
-    if decoded_token.get('exp') - int(time.time()) < 180:
-        return get_access_token()
-    return token
-
-def post_dassana_query(query: str, timeRange: TimeRange) -> list:
-    try:
-        token = get_access_token()
-        #refresh
-        token = refreshDassanaToken(token)
-        decoded = jwt.decode(token, key=None, options={"verify_signature":False})
-        domain = (str(decoded["aud"]).split(".")[2])
-
-        requestHeader = {
-            "content-type" : "application/json",
-            "Authorization" : "Bearer"+" "+token,
-            "Accept" : "application/json",
-            "x-dassana-tenant-id" : tenant_id
-        }
-
-        requestBody = dict()
-        dict["query"] = query
-        dict["timeRange"] = timeRange.getTimeRangeDict()
-
-        response = requests.request("POST", f"https://dquery.dassana.{domain}/query", headers=requestHeader, json=requestBody).text
-        responseDict = json.loads(response)
-        return responseDict["items"]
-
-    except KeyError as e:
-        logging.error(f"No such key '{e}' found while triggering dassana query")
-    except Exception as e:
-        logging.error(f"An exception occurred while triggering dassana query")
 
 def get_client_secret():
     if os.getenv("KUBERNETES_SERVICE_HOST"):
@@ -385,3 +348,39 @@ def acknowledge_delivery():
     subscriber.acknowledge(
         request={"subscription": subscription_path, "ack_ids": ack_ids}
     )
+
+def refreshDassanaToken(token):
+    decoded_token = jwt.decode(token, key=None, options={"verify_signature":False})
+
+    # Less than 3 minutes to expiry, refresh
+    if decoded_token.get('exp') - int(time.time()) < 180:
+        return get_access_token()
+    return token
+
+def post_dassana_query(query: str, timeRange: TimeRange) -> list:
+    try:
+        token = get_access_token()
+        #refresh
+        token = refreshDassanaToken(token)
+        decoded = jwt.decode(token, key=None, options={"verify_signature":False})
+        domain = (str(decoded["aud"]).split(".")[2])
+
+        requestHeader = {
+            "content-type" : "application/json",
+            "Authorization" : "Bearer"+" "+token,
+            "Accept" : "application/json",
+            "x-dassana-tenant-id" : tenant_id
+        }
+
+        requestBody = dict()
+        requestBody["query"] = query
+        requestBody["timeRange"] = timeRange.getTimeRangeDict()
+
+        response = requests.request("POST", f"https://dquery.dassana.{domain}/query", headers=requestHeader, json=requestBody).text
+        responseDict = json.loads(response)
+        return responseDict
+
+    except KeyError as e:
+        logging.error(f"No such key '{e}' found while triggering dassana query")
+    except Exception as e:
+        logging.error(f"An exception occurred while triggering dassana query")
