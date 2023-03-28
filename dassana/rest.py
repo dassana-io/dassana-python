@@ -255,6 +255,8 @@ def datetime_handler(val):
         return val.isoformat()
     return str(val)
 
+endpoint = get_endpoint()
+
 def create_snapshot(ingestion_type,metadata):
     headers = {
         "x-dassana-app-id":f"{app_id}",
@@ -262,7 +264,7 @@ def create_snapshot(ingestion_type,metadata):
         "x-dassana-ingestion-type":f"{ingestion_type}"
     }
     
-    resp = requests.post(f"https://ingestion.dassana.dev/snapshot", headers=headers,json=metadata)
+    resp = requests.post(f"{endpoint}/snapshot", headers=headers,json=metadata)
     snapshot = resp.json()
 
     currentTs = round(time.time() * 1000)
@@ -286,10 +288,9 @@ def update_snapshot(ingestion_type,snapshot_id,payload):
         "x-dassana-ingestion-type":f"{ingestion_type}",
         "x-dassana-snapshot-id":f"{snapshot_id}"
     }
-    resp = requests.put(f"https://ingestion.dassana.dev/snapshot", headers=headers,json=payload)
+    resp = requests.put(f"{endpoint}/snapshot", headers=headers,json=payload)
     updated_snapshot = resp.json()
     return updated_snapshot
-
     
 def end_snapshot(ingestion_type,snapshot_id,status,is_recon):
     headers = {
@@ -298,7 +299,7 @@ def end_snapshot(ingestion_type,snapshot_id,status,is_recon):
         "x-dassana-ingestion-type":f"{ingestion_type}",
         "x-dassana-snapshot-id":f"{snapshot_id}"
     }
-    resp = requests.post(f"https://ingestion.dassana.dev/snapshot/{status}?isReconJob={is_recon}", headers=headers)
+    resp = requests.post(f"{endpoint}/snapshot/{status}?isReconJob={is_recon}", headers=headers)
     return resp.status_code
 
 def forward_logs(log_data,type="findings",snapshot_id=None):    
