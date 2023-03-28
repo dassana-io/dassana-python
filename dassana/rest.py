@@ -255,7 +255,53 @@ def datetime_handler(val):
         return val.isoformat()
     return str(val)
 
-def forward_logs(log_data,type="findings"):    
+def create_snapshot(dassana_token,app_id,ingestion_type,metadata):
+    headers = {
+        "x-dassana-app-id":f"{app_id}",
+        "x-dassana-token":f"{dassana_token}",
+        "x-dassana-ingestion-type":f"{ingestion_type}"
+    }
+    
+    resp = requests.post(f"https://ingestion.dassana.dev/snapshot", headers=headers,json=metadata)
+    snapshot = resp.json()
+
+    currentTs = round(time.time() * 1000)
+    timeRange = currentTs - 3600000
+    if snapshot['status'] == "IN_PROGRESS":
+        if timeRange <= snapshot['lastUpdatedTs'] <= currentTs:
+            logging.info("wait for previous snapshot to end")
+            return None
+        else:
+            snapshot_id = snapshot.get('id')
+            end_snapshot(dassana_token,app_id,ingestion_type,snapshot_id,'cancel',False)
+            result = create_snapshot(dassana_token,app_id,ingestion_type,metadata)
+            return result
+    else:
+        return snapshot
+    
+def update_snapshot(dassana_token,app_id,ingestion_type,snapshot_id,payload):
+    headers = {
+        "x-dassana-app-id":f"{app_id}",
+        "x-dassana-token":f"{dassana_token}",
+        "x-dassana-ingestion-type":f"{ingestion_type}",
+        "x-dassana-snapshot-id":f"{snapshot_id}"
+    }
+    resp = requests.put(f"https://ingestion.dassana.dev/snapshot", headers=headers,json=payload)
+    updated_snapshot = resp.json()
+    return updated_snapshot
+
+    
+def end_snapshot(dassana_token,app_id,ingestion_type,snapshot_id,status,is_recon):
+    headers = {
+        "x-dassana-app-id":f"{app_id}",
+        "x-dassana-token":f"{dassana_token}",
+        "x-dassana-ingestion-type":f"{ingestion_type}",
+        "x-dassana-snapshot-id":f"{snapshot_id}"
+    }
+    resp = requests.post(f"https://ingestion.dassana.dev/snapshot/{status}?isReconJob={is_recon}", headers=headers)
+    return resp.status_code
+
+def forward_logs(log_data,type="findings",snapshot_id=None):    
     if type == 'findings':
         endpoint = f"{os.environ['DASSANA_ENDPOINT']}/findings"
     elif type == 'assets':
@@ -269,11 +315,14 @@ def forward_logs(log_data,type="findings"):
     magic_word = get_magic_word()
 
     headers = {
-        "x-dassana-token": token,
-        "x-dassana-app-id": app_id,
-        "Content-type": "application/x-ndjson",
-        "Content-encoding": "gzip",
-    }
+            "x-dassana-token": token,
+            "x-dassana-app-id": app_id,
+            "Content-type": "application/x-ndjson",
+            "Content-encoding": "gzip",
+        }
+    
+    if snapshot_id:
+        headers['x-dassana-snapshot-id'] = snapshot_id
 
     if magic_word:
         headers['x-dassana-magic-word'] = magic_word
