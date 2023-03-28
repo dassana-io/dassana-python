@@ -291,7 +291,6 @@ def update_snapshot(ingestion_type,snapshot_id,payload):
     resp = requests.put(f"{endpoint}/snapshot", headers=headers,json=payload)
     updated_snapshot = resp.json()
     return updated_snapshot
-
     
 def end_snapshot(ingestion_type,snapshot_id,status,is_recon):
     headers = {
