@@ -255,7 +255,7 @@ def datetime_handler(val):
         return val.isoformat()
     return str(val)
 
-def create_snapshot(dassana_token,app_id,ingestion_type,metadata):
+def create_snapshot(ingestion_type,metadata):
     headers = {
         "x-dassana-app-id":f"{app_id}",
         "x-dassana-token":f"{dassana_token}",
@@ -273,13 +273,13 @@ def create_snapshot(dassana_token,app_id,ingestion_type,metadata):
             return None
         else:
             snapshot_id = snapshot.get('id')
-            end_snapshot(dassana_token,app_id,ingestion_type,snapshot_id,'cancel',False)
-            result = create_snapshot(dassana_token,app_id,ingestion_type,metadata)
+            end_snapshot(ingestion_type,snapshot_id,'cancel',False)
+            result = create_snapshot(ingestion_type,metadata)
             return result
     else:
         return snapshot
     
-def update_snapshot(dassana_token,app_id,ingestion_type,snapshot_id,payload):
+def update_snapshot(ingestion_type,snapshot_id,payload):
     headers = {
         "x-dassana-app-id":f"{app_id}",
         "x-dassana-token":f"{dassana_token}",
@@ -291,7 +291,7 @@ def update_snapshot(dassana_token,app_id,ingestion_type,snapshot_id,payload):
     return updated_snapshot
 
     
-def end_snapshot(dassana_token,app_id,ingestion_type,snapshot_id,status,is_recon):
+def end_snapshot(ingestion_type,snapshot_id,status,is_recon):
     headers = {
         "x-dassana-app-id":f"{app_id}",
         "x-dassana-token":f"{dassana_token}",
