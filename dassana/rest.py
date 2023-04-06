@@ -258,6 +258,17 @@ def datetime_handler(val):
 endpoint = get_endpoint()
 
 def create_snapshot(ingestion_type,metadata):
+
+    if ingestion_type == 'assets':
+        snapshotId = get_asset_snapshot_id()
+        if snapshotId is not None:
+            return snapshotId
+        
+    elif ingestion_type == 'findings':
+        snapshotId = get_finding_snapshot_id()
+        if snapshotId is not None:
+            return snapshotId
+
     headers = {
         "x-dassana-app-id":f"{app_id}",
         "x-dassana-token":f"{dassana_token}",
@@ -288,7 +299,20 @@ def update_snapshot(ingestion_type,snapshot_id,payload):
         "x-dassana-ingestion-type":f"{ingestion_type}",
         "x-dassana-snapshot-id":f"{snapshot_id}"
     }
-    resp = requests.put(f"{endpoint}/snapshot", headers=headers,json=payload)
+
+    retry = Retry(
+    total=3,
+    status_forcelist=[429, 500, 502, 503, 504],
+    backoff_factor=2,
+    method_whitelist=["PUT"]
+    )
+
+    http = requests.Session()
+    adapter = HTTPAdapter(max_retries=retry)
+    http.mount("http://", adapter)
+    http.mount("https://", adapter)
+
+    resp = http.put(f"{endpoint}/snapshot", headers=headers,json=payload)
     updated_snapshot = resp.json()
     return updated_snapshot
     
