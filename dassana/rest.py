@@ -288,9 +288,9 @@ def create_snapshot(ingestion_type,metadata):
             snapshot_id = snapshot.get('id')
             end_snapshot(ingestion_type,snapshot_id,'cancel',False)
             result = create_snapshot(ingestion_type,metadata)
-            return result
+            return result['id']
     else:
-        return snapshot
+        return snapshot['id']
     
 def update_snapshot(ingestion_type,snapshot_id,payload):
     headers = {
