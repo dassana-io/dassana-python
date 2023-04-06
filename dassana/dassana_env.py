@@ -71,3 +71,13 @@ def get_ingestion_config_id():
     if "DASSANA_INGESTION_CONFIG_ID" not in os.environ:
         return None
     return str(os.environ["DASSANA_INGESTION_CONFIG_ID"])
+
+def get_asset_snapshot_id():
+    if "DASSANA_ASSET_SNAPSHOT_ID" not in os.environ:
+        return None
+    return str(os.environ["DASSANA_ASSET_SNAPSHOT_ID"])
+
+def get_finding_snapshot_id():
+    if "DASSANA_FINDING_SNAPSHOT_ID" not in os.environ:
+        return None
+    return str(os.environ["DASSANA_FINDING_SNAPSHOT_ID"])
