@@ -11,7 +11,6 @@ import base64
 
 auth_url = os.environ.get("DASSANA_JWT_ISSUER")
 app_url = os.environ.get("DASSANA_APP_SERVICE_HOST")
-service_client_id = os.environ.get("DASSANA_CLIENT_ID")
 tenant_id = os.environ.get("DASSANA_TENANT_ID")
 debug = int(os.environ.get("DASSANA_DEBUG", 0))
 app_id = os.environ.get("DASSANA_APP_ID")
@@ -25,8 +24,8 @@ def get_client_secret():
         if debug:
             return os.getenv("DASSANA_SERVICE_CLIENT_SECRET")
     v1 = client.CoreV1Api()
-    secret_res = v1.read_namespaced_secret("ingestion-secrets", "ingestion")
-    secret_b64 = secret_res.data["security.clientSecret"]
+    secret_res = v1.read_namespaced_secret("ingestion-srv-secrets", "ingestion-srv")
+    secret_b64 = secret_res.data["dassana.auth.client-secret"]
     secret = base64.b64decode(secret_b64)
     return secret
 
@@ -37,7 +36,7 @@ def get_access_token():
             url,
             data={
                 "grant_type": "client_credentials",
-                "client_id": service_client_id,
+                "client_id": "ingestion-srv",
                 "client_secret": get_client_secret(),
             },
             verify=False
@@ -47,7 +46,7 @@ def get_access_token():
             url,
             data={
                 "grant_type": "client_credentials",
-                "client_id": service_client_id,
+                "client_id": "ingestion-srv",
                 "client_secret": get_client_secret(),
             }
         )
@@ -168,17 +167,20 @@ class DassanaWriter:
         response = get_ingestion_details(tenant_id, source, record_type, config_id, metadata, priority, is_snapshot)
         service = response['stageDetails']['cloud']
         self.job_id = response["jobId"]
-        self.bucket_name = response['stageDetails']['bucket']
-        credentials = response['stageDetails']['serviceAccountCredentialsJson']
-        self.full_file_path = response['stageDetails']['filePath']
-        
-        with open('service_account.json', 'w') as f:
-            json.dump(json.loads(credentials), f, indent=4)
-            f.close()
+
 
         if service == 'gcp':
+            self.bucket_name = response['stageDetails']['bucket']
+            credentials = response['stageDetails']['serviceAccountCredentialsJson']
+            self.full_file_path = response['stageDetails']['filePath']
+        
+            with open('service_account.json', 'w') as f:
+                json.dump(json.loads(credentials), f, indent=4)
+                f.close()
+            
             os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'service_account.json'
             self.client = storage.Client()
+
         elif service == 'aws':
             self.client = boto3.client('s3')
         else:
