@@ -225,7 +225,7 @@ class DassanaWriter:
 
         self.client.upload_file(self.file_path, self.bucket_name, self.file_path)
 
-    def cancel_job(self, metadata):
+    def cancel_job(self, metadata = {}):
         cancel_ingestion_job(self.job_id, self.tenant_id, metadata)
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
