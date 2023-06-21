@@ -91,14 +91,19 @@ def get_ingestion_details(tenant_id, source, record_type, config_id, metadata, p
         "x-dassana-tenant-id": tenant_id,
         "Authorization": f"Bearer {access_token}", 
     }
-    res = requests.post(ingestion_service_url +"/job/", headers=headers, json={
+    json_body = {
         "source": str(source),
         "recordType": str(record_type),
         "configId": str(config_id),
         "is_snapshot": is_snapshot,
-        # "priority": priority,
+        "priority": priority,
         "metadata": metadata
-        })
+        }
+    
+    if json_body["priority"] is None:
+        del json_body["priority"]
+    
+    res = requests.post(ingestion_service_url +"/job/", headers=headers, json=json_body)
     if(res.status_code == 200):
         return res.json()
 
@@ -131,7 +136,7 @@ def report_status(status, additionalContext, timeTakenInSec, recordsIngested, in
         logging.info(f"Report request status: {resp.status_code}")
 
 class DassanaWriter:
-    def __init__(self, tenant_id, source, record_type, config_id, metadata = {}, priority = 999, is_snapshot = False):
+    def __init__(self, tenant_id, source, record_type, config_id, metadata = {}, priority = None, is_snapshot = False):
         print("Initialized common utility")
 
         self.source = source
