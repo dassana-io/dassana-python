@@ -1,4 +1,4 @@
-import json
+import simplejson as json
 import time
 from google.cloud import storage
 import boto3
