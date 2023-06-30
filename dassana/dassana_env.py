@@ -1,14 +1,5 @@
 import os
 
-
-def get_endpoint():
-    if "DASSANA_ENDPOINT" not in os.environ:
-        raise KeyError(
-            "DASSANA_ENDPOINT environment variable is not set. Review your Lambda configuration."
-        )
-    return os.environ["DASSANA_ENDPOINT"]
-
-
 def get_app_id():
     if "DASSANA_APP_ID" not in os.environ:
         raise KeyError(
@@ -16,68 +7,47 @@ def get_app_id():
         )
     return os.environ["DASSANA_APP_ID"]
 
-
-def get_token():
-    if "DASSANA_TOKEN" not in os.environ:
+def get_auth_url():
+    if "DASSANA_AUTH_URL" not in os.environ:
         raise KeyError(
-            "DASSANA_TOKEN environment variable is not set. Review your Lambda configuration."
+            "DASSANA_AUTH_URL environment variable is not set. Review your Lambda configuration."
         )
-    return os.environ["DASSANA_TOKEN"]
+    return os.environ["DASSANA_AUTH_URL"]
 
-
-def get_ssl():
-    endpoint=get_endpoint()
-    return endpoint.startswith("https") and not endpoint.__contains__("svc.cluster.local:")
-
-def get_batch_size():
-    if "DASSANA_BATCH_SIZE" not in os.environ:
+def get_app_url():
+    if "DASSANA_APP_SERVICE_URL" not in os.environ:
         raise KeyError(
-            "DASSANA_BATCH_SIZE environment variable is not set. Review your Lambda configuration."
+            "DASSANA_APP_SERVICE_URL environment variable is not set. Review your Lambda configuration."
         )
+    return os.environ["DASSANA_APP_SERVICE_URL"]
 
-    batch_size = os.environ["DASSANA_BATCH_SIZE"]
-    if not batch_size.isdigit():
-        raise ValueError("DASSANA_BATCH_SIZE environment variable is not an integer.")
-
-    return int(batch_size)
-
-def get_ackID():
-    if "GCP_ACK_ID" not in os.environ:
+def get_tenant_id():
+    if "DASSANA_TENANT_ID" not in os.environ:
         raise KeyError(
-            "GCP_ACK_ID environment variable is not set."
+            "DASSANA_TENANT_ID environment variable is not set. Review your Lambda configuration."
         )
-    return os.environ["GCP_ACK_ID"]
+    return os.environ["DASSANA_TENANT_ID"]
 
-def get_gcp_project_id():
-    if "DASSANA_GCP_PRJ_ID" not in os.environ:
+def get_if_debug():
+    return int(os.environ.get("DASSANA_DEBUG", 0))
+
+def get_ingestion_srv_url():
+    if "DASSANA_INGESTION_SERVICE_URL" not in os.environ:
         raise KeyError(
-            "DASSANA_GCP_PRJ_ID environment variable is not set."
+            "DASSANA_INGESTION_SERVICE_URL environment variable is not set. Review your Lambda configuration."
         )
-    return os.environ["DASSANA_GCP_PRJ_ID"]
+    return os.environ["DASSANA_INGESTION_SERVICE_URL"]
 
-def get_gcp_subscription_id():
-    if "GCP_SUBSCRIPTION_ID" not in os.environ:
+def get_client_id():
+    if "DASSANA_CLIENT_ID" not in os.environ:
         raise KeyError(
-            "GCP_SUBSCRIPTION_ID environment variable is not set."
+            "DASSANA_CLIENT_ID environment variable is not set. Review your Lambda configuration."
         )
-    return os.environ["GCP_SUBSCRIPTION_ID"]
+    return os.environ["DASSANA_CLIENT_ID"]
 
-def get_magic_word():
-    if "DASSANA_DEBUG_MAGIC_WORD" not in os.environ:
-        return None
-    return os.environ["DASSANA_DEBUG_MAGIC_WORD"]
-
-def get_ingestion_config_id():
-    if "DASSANA_INGESTION_CONFIG_ID" not in os.environ:
-        return None
-    return str(os.environ["DASSANA_INGESTION_CONFIG_ID"])
-
-def get_asset_snapshot_id():
-    if "DASSANA_ASSET_SNAPSHOT_ID" not in os.environ:
-        return None
-    return str(os.environ["DASSANA_ASSET_SNAPSHOT_ID"])
-
-def get_finding_snapshot_id():
-    if "DASSANA_FINDING_SNAPSHOT_ID" not in os.environ:
-        return None
-    return str(os.environ["DASSANA_FINDING_SNAPSHOT_ID"])
+def get_client_secret():
+    if "DASSANA_CLIENT_SECRET" not in os.environ:
+        raise KeyError(
+            "DASSANA_CLIENT_SECRET environment variable is not set. Review your Lambda configuration."
+        )
+    return os.environ["DASSANA_CLIENT_SECRET"]

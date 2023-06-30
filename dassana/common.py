@@ -6,28 +6,79 @@ import os
 import gzip
 import requests
 import logging
-from kubernetes import client, config
-import base64
+from .dassana_env import *
+import datetime
 
-auth_url = os.environ.get("DASSANA_JWT_ISSUER")
-app_url = os.environ.get("DASSANA_APP_SERVICE_HOST")
-tenant_id = os.environ.get("DASSANA_TENANT_ID")
-debug = int(os.environ.get("DASSANA_DEBUG", 0))
-app_id = os.environ.get("DASSANA_APP_ID")
-ingestion_service_url = os.environ.get("DASSANA_INGESTION_SERVICE_URL")
+logging.basicConfig(level=logging.INFO)
 
-def get_client_secret():
-    if os.getenv("KUBERNETES_SERVICE_HOST"):
-        config.load_incluster_config()
+auth_url = get_auth_url()
+app_url = get_app_url()
+debug = get_if_debug()
+ingestion_service_url = get_ingestion_srv_url()
+client_id = get_client_id()
+client_secret = get_client_secret()
+
+class AuthenticationError(Exception):
+    """Exception Raised when credentials in configuration are invalid"""
+
+    def __init__(self, message):
+        super().__init__()
+        self.message = message
+
+    def __str__(self):
+        return f"Source authentication failure: {self.message}"
+
+
+class InternalError(Exception):
+    """Exception Raised for AppServices, Ingestion, or Upstream
+    Attributes:
+        source -- error origin
+        message -- upstream response
+    """
+
+    def __init__(self, source, message=""):
+        self.source = source
+        self.message = message
+        super().__init__(self.message)
+
+    def __str__(self):
+        return json.dumps({"source": self.source, "message": self.message})
+
+def datetime_handler(val):
+    if isinstance(val, datetime.datetime):
+        return val.isoformat()
+    return str(val)
+
+def get_ingestion_config(ingestion_config_id, app_id, tenant_id):
+    url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
+    access_token = get_access_token()
+    headers = {
+        "x-dassana-tenant-id": tenant_id,
+        "Authorization": f"Bearer {access_token}", 
+    }
+    if app_url.endswith("svc.cluster.local:443"):
+        response = requests.request("GET", url, headers=headers, verify=False)
     else:
-        config.load_kube_config()
-        if debug:
-            return os.getenv("DASSANA_SERVICE_CLIENT_SECRET")
-    v1 = client.CoreV1Api()
-    secret_res = v1.read_namespaced_secret("ingestion-srv-secrets", "ingestion-srv")
-    secret_b64 = secret_res.data["dassana.auth.client-secret"]
-    secret = base64.b64decode(secret_b64)
-    return secret
+        response = requests.request("GET", url, headers=headers)
+    try:
+        ingestion_config = response.json() 
+    except:
+        raise InternalError(url, response.json())
+    return ingestion_config
+
+def patch_ingestion_config(payload, ingestion_config_id, app_id, tenant_id):
+    url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
+    access_token = get_access_token()
+    headers = {
+        "x-dassana-tenant-id": tenant_id,
+        "Authorization": f"Bearer {access_token}",
+    }
+    if app_url.endswith("svc.cluster.local:443"):
+        response = requests.request("PATCH", url, headers=headers, json=payload, verify=False)
+    else:
+        response = requests.request("PATCH", url, headers=headers, json=payload)
+    resp=response.json()
+    return resp
 
 def get_access_token():
     url = f"{auth_url}/oauth/token"
@@ -36,8 +87,8 @@ def get_access_token():
             url,
             data={
                 "grant_type": "client_credentials",
-                "client_id": "ingestion-srv",
-                "client_secret": get_client_secret(),
+                "client_id": client_id,
+                "client_secret": client_secret,
             },
             verify=False
         )  
@@ -46,14 +97,14 @@ def get_access_token():
             url,
             data={
                 "grant_type": "client_credentials",
-                "client_id": "ingestion-srv",
-                "client_secret": get_client_secret(),
+                "client_id": client_id,
+                "client_secret": client_secret,
             }
         )
-    # try:
-    access_token = response.json()["access_token"]
-    # except:
-    #     raise InternalError(url, response.json())
+    try:
+        access_token = response.json()["access_token"]
+    except:
+        raise InternalError(url, response.json())
     return access_token
 
 def update_ingestion_to_done(job_id, tenant_id, metadata = {}):
@@ -67,7 +118,6 @@ def update_ingestion_to_done(job_id, tenant_id, metadata = {}):
         "metadata": metadata
     })
     print("Ingestion status updated to done")
-    # print(res.json())
     return res.json()
 
 def cancel_ingestion_job(job_id, tenant_id, metadata = {}):
@@ -81,7 +131,6 @@ def cancel_ingestion_job(job_id, tenant_id, metadata = {}):
         "metadata": metadata
     })
     print("Ingestion status updated to failed")
-    # print(res.json())
     return res.json()
 
 def get_ingestion_details(tenant_id, source, record_type, config_id, metadata, priority, is_snapshot):
@@ -109,7 +158,7 @@ def get_ingestion_details(tenant_id, source, record_type, config_id, metadata, p
 
     return 0
 
-def report_status(status, additionalContext, timeTakenInSec, recordsIngested, ingestion_config_id):
+def report_status(status, additionalContext, timeTakenInSec, recordsIngested, ingestion_config_id, app_id, tenant_id):
     reportingURL = f"https://{app_url}/app/v1/{app_id}/status"
 
     headers = {
@@ -202,7 +251,7 @@ class DassanaWriter:
             self.upload_to_cloud()
             self.file_path = self.get_file_path()
             self.file = open(self.file_path, 'a')
-            print("Ingested data: " + self.bytes_written)
+            print(f"Ingested data: {self.bytes_written} bytes")
             self.bytes_written = 0
             
 
@@ -240,8 +289,9 @@ class DassanaWriter:
         if self.bytes_written > 0:
             self.compress_file()
             self.upload_to_cloud()
-            print("Ingested remaining data: ", self.bytes_written)
+            print(f"Ingested remaining data: {self.bytes_written} bytes")
             self.bytes_written = 0
         update_ingestion_to_done(self.job_id, self.tenant_id)
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
+
