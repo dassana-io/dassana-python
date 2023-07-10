@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="dassana",
-    version="0.8.12",
+    version="0.8.13",
     description="Dassana common data ingestion utilities",
     long_description="Dassana common data ingestion utilities",
     url="https://github.com/dassana-io/dassana-python",
@@ -10,6 +10,6 @@ setup(
     author_email="support@dassana.io",
     license="MIT",
     packages=["dassana"],
-    install_requires=["certifi", "requests", "urllib3", "google-cloud-pubsub", "google-cloud-storage"],
+    install_requires=["certifi", "requests", "urllib3", "google-cloud-pubsub", "google-cloud-storage", "boto3"],
     zip_safe=False,
 )
