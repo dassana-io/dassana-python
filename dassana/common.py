@@ -120,14 +120,14 @@ def update_ingestion_to_done(job_id, tenant_id, metadata = {}):
     print("Ingestion status updated to done")
     return res.json()
 
-def cancel_ingestion_job(job_id, tenant_id, metadata = {}):
+def cancel_ingestion_job(job_id, tenant_id, metadata, fail_type):
     
     access_token = get_access_token()
     headers = {
         "x-dassana-tenant-id": tenant_id,
         "Authorization": f"Bearer {access_token}", 
     }
-    res = requests.post(ingestion_service_url +"/job/"+job_id+"/"+"failed", headers=headers, json={
+    res = requests.post(ingestion_service_url +"/job/"+job_id+"/"+fail_type, headers=headers, json={
         "metadata": metadata
     })
     print("Ingestion status updated to failed")
@@ -279,8 +279,8 @@ class DassanaWriter:
 
         self.client.upload_file(self.file_path, self.bucket_name, self.file_path)
 
-    def cancel_job(self, metadata = {}):
-        cancel_ingestion_job(self.job_id, self.tenant_id, metadata)
+    def cancel_job(self, metadata = {}, fail_type = "failed"):
+        cancel_ingestion_job(self.job_id, self.tenant_id, metadata, fail_type)
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
 
