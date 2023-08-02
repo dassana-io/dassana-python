@@ -252,21 +252,19 @@ class DassanaWriter:
             raise ValueError()
 
     def write_json(self, json_object):
-        try:
-            self.file.flush()
-            json.dump(json_object, self.file)
-            self.file.write('\n')
-            self.bytes_written = self.file.tell()
-            if self.bytes_written >= 99 * 1000 * 1000:
-                self.file.close()
-                self.compress_file()
-                self.upload_to_cloud()
-                self.file_path = self.get_file_path()
-                self.file = open(self.file_path, 'a')
-                print(f"Ingested data: {self.bytes_written} bytes")
-                self.bytes_written = 0
-        except Exception as e:
-            raise StageWriteFailure(e)
+        self.file.flush()
+        json.dump(json_object, self.file)
+        self.file.write('\n')
+        self.bytes_written = self.file.tell()
+        if self.bytes_written >= 99 * 1000 * 1000:
+            self.file.close()
+            self.compress_file()
+            self.upload_to_cloud()
+            self.file_path = self.get_file_path()
+            self.file = open(self.file_path, 'a')
+            print(f"Ingested data: {self.bytes_written} bytes")
+            self.bytes_written = 0
+        
             
 
     def upload_to_cloud(self):
