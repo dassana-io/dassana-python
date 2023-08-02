@@ -231,7 +231,7 @@ class DassanaWriter:
             service = response['stageDetails']['cloud']
             self.job_id = response["jobId"]
         except Exception as e:
-            raise StageWriteFailure(e)
+            raise InternalError("Failed to create ingestion job",e)
 
 
         if service == 'gcp':
