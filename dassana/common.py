@@ -86,8 +86,8 @@ def patch_ingestion_config(payload, ingestion_config_id, app_id, tenant_id):
         response = requests.request("PATCH", url, headers=headers, json=payload, verify=False)
     else:
         response = requests.request("PATCH", url, headers=headers, json=payload)
-    resp=response.json()
-    return resp
+    
+    return response.status_code
 
 def get_access_token():
     url = f"{auth_url}/oauth/token"
