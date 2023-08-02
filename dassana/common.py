@@ -44,6 +44,15 @@ class InternalError(Exception):
     def __str__(self):
         return json.dumps({"source": self.source, "message": self.message})
 
+class StageWriteFailure(Exception):
+    """Exception for StageWriteFailure"""
+    def __init__(self, message):
+        super().__init__()
+        self.message = message
+
+    def __str__(self):
+        return f"Stage Write Failure: {self.message}"
+
 def datetime_handler(val):
     if isinstance(val, datetime.datetime):
         return val.isoformat()
@@ -217,10 +226,12 @@ class DassanaWriter:
         print("Compressed file completed")
     
     def initialize_client(self, tenant_id, source, record_type, config_id,  metadata, priority, is_snapshot):
-
-        response = get_ingestion_details(tenant_id, source, record_type, config_id, metadata, priority, is_snapshot)
-        service = response['stageDetails']['cloud']
-        self.job_id = response["jobId"]
+        try:
+            response = get_ingestion_details(tenant_id, source, record_type, config_id, metadata, priority, is_snapshot)
+            service = response['stageDetails']['cloud']
+            self.job_id = response["jobId"]
+        except Exception as e:
+            raise StageWriteFailure(e)
 
 
         if service == 'gcp':
@@ -241,18 +252,21 @@ class DassanaWriter:
             raise ValueError()
 
     def write_json(self, json_object):
-        self.file.flush()
-        json.dump(json_object, self.file)
-        self.file.write('\n')
-        self.bytes_written = self.file.tell()
-        if self.bytes_written >= 99 * 1000 * 1000:
-            self.file.close()
-            self.compress_file()
-            self.upload_to_cloud()
-            self.file_path = self.get_file_path()
-            self.file = open(self.file_path, 'a')
-            print(f"Ingested data: {self.bytes_written} bytes")
-            self.bytes_written = 0
+        try:
+            self.file.flush()
+            json.dump(json_object, self.file)
+            self.file.write('\n')
+            self.bytes_written = self.file.tell()
+            if self.bytes_written >= 99 * 1000 * 1000:
+                self.file.close()
+                self.compress_file()
+                self.upload_to_cloud()
+                self.file_path = self.get_file_path()
+                self.file = open(self.file_path, 'a')
+                print(f"Ingested data: {self.bytes_written} bytes")
+                self.bytes_written = 0
+        except Exception as e:
+            raise StageWriteFailure(e)
             
 
     def upload_to_cloud(self):
