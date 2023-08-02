@@ -44,6 +44,15 @@ class InternalError(Exception):
     def __str__(self):
         return json.dumps({"source": self.source, "message": self.message})
 
+class StageWriteFailure(Exception):
+    """Exception for StageWriteFailure"""
+    def __init__(self, message):
+        super().__init__()
+        self.message = message
+
+    def __str__(self):
+        return f"Stage Write Failure: {self.message}"
+
 def datetime_handler(val):
     if isinstance(val, datetime.datetime):
         return val.isoformat()
@@ -77,8 +86,8 @@ def patch_ingestion_config(payload, ingestion_config_id, app_id, tenant_id):
         response = requests.request("PATCH", url, headers=headers, json=payload, verify=False)
     else:
         response = requests.request("PATCH", url, headers=headers, json=payload)
-    resp=response.json()
-    return resp
+    
+    return response.status_code
 
 def get_access_token():
     url = f"{auth_url}/oauth/token"
@@ -217,10 +226,12 @@ class DassanaWriter:
         print("Compressed file completed")
     
     def initialize_client(self, tenant_id, source, record_type, config_id,  metadata, priority, is_snapshot):
-
-        response = get_ingestion_details(tenant_id, source, record_type, config_id, metadata, priority, is_snapshot)
-        service = response['stageDetails']['cloud']
-        self.job_id = response["jobId"]
+        try:
+            response = get_ingestion_details(tenant_id, source, record_type, config_id, metadata, priority, is_snapshot)
+            service = response['stageDetails']['cloud']
+            self.job_id = response["jobId"]
+        except Exception as e:
+            raise InternalError("Failed to create ingestion job",e)
 
 
         if service == 'gcp':
@@ -253,6 +264,7 @@ class DassanaWriter:
             self.file = open(self.file_path, 'a')
             print(f"Ingested data: {self.bytes_written} bytes")
             self.bytes_written = 0
+        
             
 
     def upload_to_cloud(self):
@@ -279,7 +291,10 @@ class DassanaWriter:
 
         self.client.upload_file(self.file_path, self.bucket_name, self.file_path)
 
-    def cancel_job(self, metadata = {}, fail_type = "failed"):
+    def cancel_job(self, error_code, failure_reason, debug_log, pass_counter = 0, fail_counter = 0, fail_type = "failed"):
+        metadata = {}
+        job_result = {"failure_reason": failure_reason, "status": str(fail_type), "debug_log": debug_log, "pass": pass_counter, "fail": fail_counter, "error_code": error_code}
+        metadata["job_result"] = job_result
         cancel_ingestion_job(self.job_id, self.tenant_id, metadata, fail_type)
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
