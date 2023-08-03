@@ -8,6 +8,7 @@ import requests
 import logging
 from .dassana_env import *
 import datetime
+from tenacity import retry, wait_fixed, stop_after_attempt
 
 logging.basicConfig(level=logging.INFO)
 
@@ -68,6 +69,7 @@ def datetime_handler(val):
         return val.isoformat()
     return str(val)
 
+@retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
 def get_ingestion_config(ingestion_config_id, app_id, tenant_id):
     url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
     access_token = get_access_token()
@@ -85,6 +87,7 @@ def get_ingestion_config(ingestion_config_id, app_id, tenant_id):
         raise InternalError("Failed to get ingestion config", "Error getting response from app-manager with response body: " + str(response.text) + " and response header: " + str(response.headers) + " and stack trace: " +  str(e))
     return ingestion_config
 
+@retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
 def patch_ingestion_config(payload, ingestion_config_id, app_id, tenant_id):
     url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
     access_token = get_access_token()
@@ -99,6 +102,7 @@ def patch_ingestion_config(payload, ingestion_config_id, app_id, tenant_id):
     
     return response.status_code
 
+@retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
 def get_access_token():
     url = f"{auth_url}/oauth/token"
     if auth_url.endswith("svc.cluster.local"):
@@ -127,6 +131,7 @@ def get_access_token():
 
     return access_token
 
+@retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
 def update_ingestion_to_done(job_id, tenant_id, metadata):
     
     access_token = get_access_token()
@@ -140,6 +145,7 @@ def update_ingestion_to_done(job_id, tenant_id, metadata):
     print("Ingestion status updated to done")
     return res.json()
 
+@retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
 def cancel_ingestion_job(job_id, tenant_id, metadata, fail_type):
     
     access_token = get_access_token()
@@ -153,6 +159,7 @@ def cancel_ingestion_job(job_id, tenant_id, metadata, fail_type):
     print("Ingestion status updated to failed")
     return res.json()
 
+@retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
 def get_ingestion_details(tenant_id, source, record_type, config_id, metadata, priority, is_snapshot):
     access_token = get_access_token()
 
@@ -178,6 +185,7 @@ def get_ingestion_details(tenant_id, source, record_type, config_id, metadata, p
 
     return 0
 
+@retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
 def report_status(status, additionalContext, timeTakenInSec, recordsIngested, ingestion_config_id, app_id, tenant_id):
     reportingURL = f"https://{app_url}/app/v1/{app_id}/status"
 
@@ -350,8 +358,10 @@ class DassanaWriter:
         except Exception as e:
             metadata = {}
             job_result = {"failure_reason": str(e), "status": "cancel", "debug_log": [str(e)], "error_code": "other_error"}
-            cancel_ingestion_job(self.job_id, self.tenant_id, {}, "cancel")
-
+            try:
+                cancel_ingestion_job(self.job_id, self.tenant_id, {}, "cancel")
+            except:
+                raise
             
     def close(self, pass_counter, fail_counter):
         self.file.close()

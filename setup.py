@@ -10,6 +10,6 @@ setup(
     author_email="support@dassana.io",
     license="MIT",
     packages=["dassana"],
-    install_requires=["certifi", "requests", "urllib3", "google-cloud-pubsub", "google-cloud-storage", "boto3", "ujson"],
+    install_requires=["certifi", "requests", "urllib3", "google-cloud-pubsub", "google-cloud-storage", "boto3", "ujson", "tenacity"],
     zip_safe=False,
 )
