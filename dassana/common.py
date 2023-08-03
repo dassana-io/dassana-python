@@ -310,6 +310,7 @@ class DassanaWriter:
         cancel_ingestion_job(self.job_id, self.tenant_id, metadata, fail_type)
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
+
     def cancel_job(self, exception_from_src):
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
@@ -355,7 +356,7 @@ class DassanaWriter:
     def close(self, pass_counter, fail_counter):
         self.file.close()
         metadata = {}
-        job_result = {"status": "done", "pass_counter" : str(pass_counter), "fail_counter": str(fail_counter)}
+        job_result = {"status": "done", "pass" : str(pass_counter), "fail": str(fail_counter)}
         metadata["job_result"] = job_result
         if self.bytes_written > 0:
             self.compress_file()
