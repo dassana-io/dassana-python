@@ -156,7 +156,7 @@ def cancel_ingestion_job(job_id, tenant_id, metadata, fail_type):
     res = requests.post(ingestion_service_url +"/job/"+job_id+"/"+fail_type, headers=headers, json={
         "metadata": metadata
     })
-    print("Ingestion status updated to failed")
+    print("Ingestion status updated to " + str(fail_type))
     return res.json()
 
 @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
@@ -366,7 +366,7 @@ class DassanaWriter:
     def close(self, pass_counter, fail_counter):
         self.file.close()
         metadata = {}
-        job_result = {"status": "done", "pass" : int(pass_counter), "fail": int(fail_counter)}
+        job_result = {"status": "done", "source": {"pass" : int(pass_counter), "fail": int(fail_counter)}}
         metadata["job_result"] = job_result
         if self.bytes_written > 0:
             self.compress_file()
