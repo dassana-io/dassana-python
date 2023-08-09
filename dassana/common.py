@@ -28,7 +28,7 @@ class AuthenticationError(Exception):
         self.response = response
 
     def __str__(self):
-        return f"{self}"
+        return f"AuthenticationError: {self.message} (Response: {self.response})"
 
 class ExternalError(Exception):
     """Exception Raised when credentials in configuration are invalid"""
@@ -38,7 +38,7 @@ class ExternalError(Exception):
         self.message = message
 
     def __str__(self):
-        return f"{self}"
+        return f"ExternalError: {self.message}"
 
 class InternalError(Exception):
     """Exception Raised for AppServices, Ingestion, or Upstream
@@ -53,7 +53,8 @@ class InternalError(Exception):
         super().__init__(self.message)
 
     def __str__(self):
-        return f"{self}"
+        return f"InternalError from {self.source}: {self.message}"
+        
 
 class StageWriteFailure(Exception):
     """Exception for StageWriteFailure"""
@@ -62,7 +63,7 @@ class StageWriteFailure(Exception):
         self.message = message
 
     def __str__(self):
-        return f"{self}"
+        return f"StageWriteFailure: {self.message}"
 
 def datetime_handler(val):
     if isinstance(val, datetime.datetime):
