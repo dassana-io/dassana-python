@@ -54,5 +54,7 @@ def get_client_secret():
 
 def get_ingestion_config_id():
     if "DASSANA_INGESTION_CONFIG_ID" not in os.environ:
-        return None
+        raise KeyError(
+            "DASSANA_INGESTION_CONFIG_ID environment variable is not set. Review your Lambda configuration."
+        )
     return str(os.environ["DASSANA_INGESTION_CONFIG_ID"])
