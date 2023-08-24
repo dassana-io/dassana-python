@@ -364,10 +364,10 @@ class DassanaWriter:
             except:
                 raise
             
-    def close(self, pass_counter, fail_counter):
+    def close(self, pass_counter, fail_counter, debug_log = set()):
         self.file.close()
         metadata = {}
-        job_result = {"status": "ready_for_download", "source": {"pass" : int(pass_counter), "fail": int(fail_counter)}}
+        job_result = {"status": "ready_for_download", "source": {"pass" : int(pass_counter), "fail": int(fail_counter), "debug_log": list(debug_log)}}
         metadata["job_result"] = job_result
         if self.bytes_written > 0:
             self.compress_file()
