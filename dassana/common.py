@@ -16,8 +16,12 @@ auth_url = get_auth_url()
 app_url = get_app_url()
 debug = get_if_debug()
 ingestion_service_url = get_ingestion_srv_url()
-client_id = get_client_id()
-client_secret = get_client_secret()
+
+if is_internal_auth():
+    client_id = get_client_id()
+    client_secret = get_client_secret()
+else:
+    dassana_token = get_dassana_token()
 
 class AuthenticationError(Exception):
     """Exception Raised when credentials in configuration are invalid"""
@@ -133,60 +137,6 @@ def get_access_token():
     return access_token
 
 @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
-def update_ingestion_to_done(job_id, tenant_id, metadata):
-    
-    access_token = get_access_token()
-    headers = {
-        "x-dassana-tenant-id": tenant_id,
-        "Authorization": f"Bearer {access_token}", 
-    }
-    res = requests.post(ingestion_service_url +"/job/"+job_id+"/"+"done", headers=headers, json={
-        "metadata": metadata
-    })
-    print("Ingestion status updated to done")
-    return res.json()
-
-@retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
-def cancel_ingestion_job(job_id, tenant_id, metadata, fail_type):
-    
-    access_token = get_access_token()
-    headers = {
-        "x-dassana-tenant-id": tenant_id,
-        "Authorization": f"Bearer {access_token}", 
-    }
-    res = requests.post(ingestion_service_url +"/job/"+job_id+"/"+fail_type, headers=headers, json={
-        "metadata": metadata
-    })
-    print("Ingestion status updated to " + str(fail_type))
-    return res.json()
-
-@retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
-def get_ingestion_details(tenant_id, source, record_type, config_id, metadata, priority, is_snapshot):
-    access_token = get_access_token()
-
-    headers = {
-        "x-dassana-tenant-id": tenant_id,
-        "Authorization": f"Bearer {access_token}", 
-    }
-    json_body = {
-        "source": str(source),
-        "recordType": str(record_type),
-        "configId": str(config_id),
-        "is_snapshot": is_snapshot,
-        "priority": priority,
-        "metadata": metadata
-        }
-    
-    if json_body["priority"] is None:
-        del json_body["priority"]
-    
-    res = requests.post(ingestion_service_url +"/job/", headers=headers, json=json_body)
-    if(res.status_code == 200):
-        return res.json()
-
-    return 0
-
-@retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
 def report_status(status, additionalContext, timeTakenInSec, recordsIngested, ingestion_config_id, app_id, tenant_id):
     reportingURL = f"https://{app_url}/app/v1/{app_id}/status"
 
@@ -236,9 +186,9 @@ class DassanaWriter:
         self.full_file_path = None
         self.file_path = self.get_file_path()
         self.job_id = None
-        self.initialize_client(self.tenant_id, self.source, self.record_type, self.config_id, self.metadata, self.priority, self.is_snapshot)
+        self.initialize_client()
         self.file = open(self.file_path, 'a')
-        
+
 
     def get_file_path(self):
         epoch_ts = int(time.time())
@@ -250,9 +200,9 @@ class DassanaWriter:
                 file_out.writelines(file_in)
         print("Compressed file completed")
     
-    def initialize_client(self, tenant_id, source, record_type, config_id,  metadata, priority, is_snapshot):
+    def initialize_client(self):
         try:
-            response = get_ingestion_details(tenant_id, source, record_type, config_id, metadata, priority, is_snapshot)
+            response = self.get_ingestion_details()
             
             self.storage_service = response['stageDetails']['cloud']
             self.job_id = response["jobId"]
@@ -340,7 +290,7 @@ class DassanaWriter:
         metadata = {}
         job_result = {"failure_reason": failure_reason, "status": str(fail_type), "debug_log": debug_log, "pass": pass_counter, "fail": fail_counter, "error_code": error_code}
         metadata["job_result"] = job_result
-        cancel_ingestion_job(self.job_id, self.tenant_id, metadata, fail_type)
+        self.cancel_ingestion_job(metadata, fail_type)
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
 
@@ -352,7 +302,7 @@ class DassanaWriter:
                 metadata = {}
                 job_result = {"failure_reason": exception_from_src.message, "status": "failed", "debug_log": [str(exception_from_src)], "error_code": "other_error"}
                 metadata["job_result"] = job_result
-                cancel_ingestion_job(self.job_id, self.tenant_id, metadata, "failed")
+                self.cancel_ingestion_job(metadata, "failed")
 
             elif(type(exception_from_src).__name__ == "AuthenticationError"):
                 
@@ -360,31 +310,31 @@ class DassanaWriter:
                 metadata = {}
                 job_result = {"failure_reason": exception_from_src.message, "status": "failed", "debug_log": debug_log, "error_code": "auth_error"}
                 metadata["job_result"] = job_result
-                cancel_ingestion_job(self.job_id, self.tenant_id, metadata, "failed")
+                self.cancel_ingestion_job(metadata, "failed")
 
             elif(type(exception_from_src).__name__ == "InternalError"):
                 metadata = {}
                 job_result = {"failure_reason": exception_from_src.message, "status": "cancel", "debug_log": [str(exception_from_src)], "error_code": "other_error"}
                 metadata["job_result"] = job_result
-                cancel_ingestion_job(self.job_id, self.tenant_id, metadata, "cancel")
+                self.cancel_ingestion_job(metadata, "cancel")
 
             elif(type(exception_from_src).__name__ == "StageWriteFailure"):
                 metadata = {}
                 job_result = {"failure_reason": exception_from_src.message, "status": "failed", "debug_log": [str(exception_from_src)], "error_code": "stage_write_failure"}
                 metadata["job_result"] = job_result
-                cancel_ingestion_job(self.job_id, self.tenant_id, metadata, "failed")
+                self.cancel_ingestion_job(metadata, "failed")
             
             else:
                 metadata = {}
                 job_result = {"failure_reason": str(exception_from_src), "status": "cancel", "debug_log": [str(exception_from_src)], "error_code": "other_error"}
                 metadata["job_result"] = job_result
-                cancel_ingestion_job(self.job_id, self.tenant_id, metadata, "cancel")
+                self.cancel_ingestion_job(metadata, "cancel")
         
         except Exception as e:
             metadata = {}
             job_result = {"failure_reason": str(e), "status": "cancel", "debug_log": [str(e)], "error_code": "other_error"}
             try:
-                cancel_ingestion_job(self.job_id, self.tenant_id, {}, "cancel")
+                self.cancel_ingestion_job({}, "cancel")
             except:
                 raise
             
@@ -398,7 +348,60 @@ class DassanaWriter:
             self.upload_to_cloud()
             print(f"Ingested remaining data: {self.bytes_written} bytes")
             self.bytes_written = 0
-        update_ingestion_to_done(self.job_id, self.tenant_id, metadata)
+        self.update_ingestion_to_done(metadata)
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
 
+    @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
+    def update_ingestion_to_done(self, metadata):
+        
+        access_token = get_access_token()
+        headers = {
+            "x-dassana-tenant-id": self.tenant_id,
+            "Authorization": f"Bearer {access_token}", 
+        }
+        res = requests.post(ingestion_service_url +"/job/"+self.job_id+"/"+"done", headers=headers, json={
+            "metadata": metadata
+        })
+        print("Ingestion status updated to done")
+        return res.json()
+
+    @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
+    def get_ingestion_details(self):
+        access_token = get_access_token()
+
+        headers = {
+            "x-dassana-tenant-id": self.tenant_id,
+            "Authorization": f"Bearer {access_token}", 
+        }
+        json_body = {
+            "source": str(self.source),
+            "recordType": str(self.record_type),
+            "configId": str(self.config_id),
+            "is_snapshot": self.is_snapshot,
+            "priority": self.priority,
+            "metadata": self.metadata
+            }
+        
+        if json_body["priority"] is None:
+            del json_body["priority"]
+        
+        res = requests.post(ingestion_service_url +"/job/", headers=headers, json=json_body)
+        if(res.status_code == 200):
+            return res.json()
+
+        return 0
+
+    @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
+    def cancel_ingestion_job(self, metadata, fail_type):
+        
+        access_token = get_access_token()
+        headers = {
+            "x-dassana-tenant-id": self.tenant_id,
+            "Authorization": f"Bearer {access_token}", 
+        }
+        res = requests.post(ingestion_service_url +"/job/"+ self.job_id +"/"+fail_type, headers=headers, json={
+            "metadata": metadata
+        })
+        print("Ingestion status updated to " + str(fail_type))
+        return res.json()
