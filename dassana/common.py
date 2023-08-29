@@ -225,7 +225,12 @@ class DassanaWriter:
         self.is_snapshot = is_snapshot
         self.tenant_id = tenant_id
         self.bytes_written = 0
+        self.storage_service = None
         self.client = None
+        self.aws_iam_role_arn = None
+        self.aws_iam_external_id = None
+        self.aws_sts_client = None
+        self.aws_session_token_expiration = None
         self.bucket_name = None
         self.blob = None
         self.full_file_path = None
@@ -249,13 +254,13 @@ class DassanaWriter:
         try:
             response = get_ingestion_details(tenant_id, source, record_type, config_id, metadata, priority, is_snapshot)
             
-            service = response['stageDetails']['cloud']
+            self.storage_service = response['stageDetails']['cloud']
             self.job_id = response["jobId"]
         except Exception as e:
             raise InternalError("Failed to create ingestion job", "Error getting response from ingestion-srv with response body: " + str(response.text) + " and response header: " + str(response.headers) + " and stack trace: " +  str(e))
 
 
-        if service == 'gcp':
+        if self.storage_service == 'gcp':
             self.bucket_name = response['stageDetails']['bucket']
             credentials = response['stageDetails']['serviceAccountCredentialsJson']
             self.full_file_path = response['stageDetails']['filePath']
@@ -267,8 +272,14 @@ class DassanaWriter:
             os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'service_account.json'
             self.client = storage.Client()
 
-        elif service == 'aws':
-            self.client = boto3.client('s3')
+        elif self.storage_service == 'aws':
+            stage_details = response['stageDetails']
+            if "awsIamRoleArn" in stage_details:
+                self.aws_sts_client = boto3.client('sts', aws_access_key_id=stage_details['accessKey'], aws_secret_access_key=stage_details['secretKey'])
+                self.aws_iam_role_arn = stage_details['awsIamRoleArn']
+                self.aws_iam_external_id = stage_details['awsIamExternalId']
+            else:
+                self.client = boto3.client('s3', aws_access_key_id=stage_details['accessKey'], aws_secret_access_key=stage_details['secretKey'])
         else:
             raise ValueError()
 
@@ -292,9 +303,9 @@ class DassanaWriter:
         if self.client is None:
             raise ValueError("Client not initialized.")
 
-        if isinstance(self.client, storage.Client):
+        if self.storage_service == 'gcp':
             self.upload_to_gcp()
-        elif isinstance(self.client, boto3.client('s3')):
+        elif self.storage_service == 'aws':
             self.upload_to_aws()
         else:
             raise ValueError()
@@ -307,9 +318,22 @@ class DassanaWriter:
         self.blob.upload_from_filename(self.file_path + ".gz")
 
     def upload_to_aws(self):
-        if self.client is None:
+        if self.client is None or self.aws_sts_client is None:
             raise ValueError()
 
+        if self.aws_iam_role_arn and (not self.aws_session_token_expiration or (self.aws_session_token_expiration < datetime.datetime.now() + datetime.timedelta(minutes=2))):
+            assume_role_response = self.aws_sts_client.assume_role(
+                    RoleArn=self.aws_iam_role_arn,
+                    RoleSessionName="DassanaIngestion",
+                    ExternalId=self.aws_iam_external_id)
+            temp_credentials = assume_role_response['Credentials']
+            self.aws_session_token_expiration = temp_credentials['SecretAccessKey']
+            self.client = boto3.client(
+                's3',
+                aws_access_key_id=temp_credentials['AccessKeyId'],
+                aws_secret_access_key=temp_credentials['SecretAccessKey'],
+                aws_session_token=temp_credentials['SessionToken'])
+        
         self.client.upload_file(self.file_path, self.bucket_name, self.file_path)
 
     def cancel_job(self, error_code, failure_reason, debug_log, pass_counter = 0, fail_counter = 0, fail_type = "failed"):
