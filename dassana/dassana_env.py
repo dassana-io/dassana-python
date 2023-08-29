@@ -22,6 +22,8 @@ def get_app_url():
     return os.environ["DASSANA_APP_SERVICE_URL"]
 
 def get_tenant_id():
+    if not is_internal_auth():
+        return ""
     if "DASSANA_TENANT_ID" not in os.environ:
         raise KeyError(
             "DASSANA_TENANT_ID environment variable is not set. Review your Lambda configuration."
@@ -58,3 +60,17 @@ def get_ingestion_config_id():
             "DASSANA_INGESTION_CONFIG_ID environment variable is not set. Review your Lambda configuration."
         )
     return str(os.environ["DASSANA_INGESTION_CONFIG_ID"])
+
+def get_dassana_token():
+    if "DASSANA_TOKEN" not in os.environ:
+        raise KeyError(
+            "DASSANA_TOKEN environment variable is not set. Review your Lambda configuration."
+        )
+    return str(os.environ["DASSANA_TOKEN"])
+
+def is_internal_auth():
+    try:
+        get_dassana_token()
+    except KeyError:
+        return True
+    return False
