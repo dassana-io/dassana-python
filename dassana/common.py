@@ -16,13 +16,11 @@ auth_url = get_auth_url()
 app_url = get_app_url()
 debug = get_if_debug()
 ingestion_service_url = get_ingestion_srv_url()
-client_id = get_client_id()
-client_secret = get_client_secret()
 
 class AuthenticationError(Exception):
     """Exception Raised when credentials in configuration are invalid"""
 
-    def __init__(self, message, response):
+    def __init__(self, message, response = ""):
         super().__init__()
         self.message = message
         self.response = response
@@ -105,6 +103,10 @@ def patch_ingestion_config(payload, ingestion_config_id, app_id, tenant_id):
 
 @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
 def get_access_token():
+
+    client_id = get_client_id()
+    client_secret = get_client_secret()
+
     url = f"{auth_url}/oauth/token"
     if auth_url.endswith("svc.cluster.local"):
         response = requests.post(
@@ -131,6 +133,15 @@ def get_access_token():
         raise InternalError("Failed to get access token", "Error getting response from app-manager with response body: " + str(response.text) + " and response header: " + str(response.headers) + " and stack trace: " +  str(e))
 
     return access_token
+
+@retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
+def get_signing_url(job_id):
+    app_token = get_dassana_token()
+    headers = {
+        "x-dassana-token": app_token
+    }
+    res = requests.get(ingestion_service_url +"/job/"+job_id+"/"+"signing-url", headers=headers)
+    return res.json()
 
 @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
 def update_ingestion_to_done(job_id, tenant_id, metadata):
@@ -161,13 +172,19 @@ def cancel_ingestion_job(job_id, tenant_id, metadata, fail_type):
     return res.json()
 
 @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
-def get_ingestion_details(tenant_id, source, record_type, config_id, metadata, priority, is_snapshot):
-    access_token = get_access_token()
+def get_ingestion_details(tenant_id, source, record_type, config_id, metadata, priority, is_snapshot, in_customer_env):
+    if in_customer_env:
+        app_token = get_dassana_token()
+        headers = {
+            "x-dassana-token": app_token
+        }
+    else:
+        access_token = get_access_token()
 
-    headers = {
-        "x-dassana-tenant-id": tenant_id,
-        "Authorization": f"Bearer {access_token}", 
-    }
+        headers = {
+            "x-dassana-tenant-id": tenant_id,
+            "Authorization": f"Bearer {access_token}"
+        }
     json_body = {
         "source": str(source),
         "recordType": str(record_type),
@@ -179,7 +196,6 @@ def get_ingestion_details(tenant_id, source, record_type, config_id, metadata, p
     
     if json_body["priority"] is None:
         del json_body["priority"]
-    
     res = requests.post(ingestion_service_url +"/job/", headers=headers, json=json_body)
     if(res.status_code == 200):
         return res.json()
@@ -214,7 +230,7 @@ def report_status(status, additionalContext, timeTakenInSec, recordsIngested, in
         logging.info(f"Report request status: {resp.status_code}")
 
 class DassanaWriter:
-    def __init__(self, tenant_id, source, record_type, config_id, metadata = {}, priority = None, is_snapshot = False):
+    def __init__(self, tenant_id, source, record_type, config_id, metadata = {}, priority = None, is_snapshot = False, in_customer_env=False):
         print("Initialized common utility")
 
         self.source = source
@@ -224,19 +240,22 @@ class DassanaWriter:
         self.priority = priority
         self.is_snapshot = is_snapshot
         self.tenant_id = tenant_id
+        self.in_customer_env = in_customer_env
         self.bytes_written = 0
         self.client = None
+        self.signing_url = None
         self.bucket_name = None
         self.blob = None
         self.full_file_path = None
         self.file_path = self.get_file_path()
         self.job_id = None
-        self.initialize_client(self.tenant_id, self.source, self.record_type, self.config_id, self.metadata, self.priority, self.is_snapshot)
+        self.initialize_client(self.tenant_id, self.source, self.record_type, self.config_id, self.metadata, self.priority, self.is_snapshot, self.in_customer_env)
         self.file = open(self.file_path, 'a')
         
-
     def get_file_path(self):
         epoch_ts = int(time.time())
+        if self.in_customer_env and (self.source == 'k8s' or self.source == 'gcp'):
+            return f"/tmp/{epoch_ts}.ndjson"
         return f"{epoch_ts}.ndjson"
 
     def compress_file(self):
@@ -245,32 +264,39 @@ class DassanaWriter:
                 file_out.writelines(file_in)
         print("Compressed file completed")
     
-    def initialize_client(self, tenant_id, source, record_type, config_id,  metadata, priority, is_snapshot):
+    def initialize_client(self, tenant_id, source, record_type, config_id,  metadata, priority, is_snapshot, in_customer_env):
         try:
-            response = get_ingestion_details(tenant_id, source, record_type, config_id, metadata, priority, is_snapshot)
+            response = get_ingestion_details(tenant_id, source, record_type, config_id, metadata, priority, is_snapshot, in_customer_env)
             
             service = response['stageDetails']['cloud']
             self.job_id = response["jobId"]
         except Exception as e:
             raise InternalError("Failed to create ingestion job", "Error getting response from ingestion-srv with response body: " + str(response.text) + " and response header: " + str(response.headers) + " and stack trace: " +  str(e))
 
-
-        if service == 'gcp':
-            self.bucket_name = response['stageDetails']['bucket']
-            credentials = response['stageDetails']['serviceAccountCredentialsJson']
-            self.full_file_path = response['stageDetails']['filePath']
+        if in_customer_env:
+            try:
+                response = get_signing_url(self.job_id)
+                self.signing_url = response["url"]
+            except Exception as e:
+                raise InternalError("The signing URL has not been received", "Error getting response from ingestion-srv with response body: " + str(response.text) + " and response header: " + str(response.headers) + " and stack trace: " +  str(e))
         
-            with open('service_account.json', 'w') as f:
-                json.dump(json.loads(credentials), f, indent=4)
-                f.close()
-            
-            os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'service_account.json'
-            self.client = storage.Client()
-
-        elif service == 'aws':
-            self.client = boto3.client('s3')
         else:
-            raise ValueError()
+            if service == 'gcp':
+                self.bucket_name = response['stageDetails']['bucket']
+                credentials = response['stageDetails']['serviceAccountCredentialsJson']
+                self.full_file_path = response['stageDetails']['filePath']
+            
+                with open('service_account.json', 'w') as f:
+                    json.dump(json.loads(credentials), f, indent=4)
+                    f.close()
+                
+                os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'service_account.json'
+                self.client = storage.Client()
+
+            elif service == 'aws':
+                self.client = boto3.client('s3')
+            else:
+                raise ValueError()
 
     def write_json(self, json_object):
         self.file.flush()
@@ -285,19 +311,30 @@ class DassanaWriter:
             self.file = open(self.file_path, 'a')
             print(f"Ingested data: {self.bytes_written} bytes")
             self.bytes_written = 0
-        
-            
 
     def upload_to_cloud(self):
         if self.client is None:
             raise ValueError("Client not initialized.")
-
-        if isinstance(self.client, storage.Client):
+        if self.in_customer_env:
+            self.upload_to_signed_url()
+        elif isinstance(self.client, storage.Client):
             self.upload_to_gcp()
         elif isinstance(self.client, boto3.client('s3')):
             self.upload_to_aws()
         else:
             raise ValueError()
+
+    def upload_to_signed_url(self):
+        if not self.signing_url:
+            raise ValueError("The signed URL has not been received")
+        
+        headers = {
+            'Content-Encoding': 'gzip',
+            'Content-Type': 'application/octet-stream'
+        }
+        with open(str(self.file_path) + ".gz", "rb") as read:
+            data = read.read()
+            requests.put(url=self.signing_url, data=data, headers=headers)
 
     def upload_to_gcp(self):
         if self.client is None:
@@ -310,7 +347,7 @@ class DassanaWriter:
         if self.client is None:
             raise ValueError()
 
-        self.client.upload_file(self.file_path, self.bucket_name, self.file_path)
+        raise InternalError("Common Util", "AWS yet to implement")
 
     def cancel_job(self, error_code, failure_reason, debug_log, pass_counter = 0, fail_counter = 0, fail_type = "failed"):
         metadata = {}

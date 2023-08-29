@@ -58,3 +58,10 @@ def get_ingestion_config_id():
             "DASSANA_INGESTION_CONFIG_ID environment variable is not set. Review your Lambda configuration."
         )
     return str(os.environ["DASSANA_INGESTION_CONFIG_ID"])
+
+def get_dassana_token():
+    if "DASSANA_TOKEN" not in os.environ:
+        raise KeyError(
+            "DASSANA_TOKEN environment variable is not set. Review your Lambda configuration."
+        )
+    return str(os.environ["DASSANA_TOKEN"])
