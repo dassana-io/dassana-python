@@ -12,17 +12,6 @@ from tenacity import retry, wait_fixed, stop_after_attempt
 
 logging.basicConfig(level=logging.INFO)
 
-auth_url = get_auth_url()
-app_url = get_app_url()
-debug = get_if_debug()
-ingestion_service_url = get_ingestion_srv_url()
-
-if is_internal_auth():
-    client_id = get_client_id()
-    client_secret = get_client_secret()
-else:
-    dassana_token = get_dassana_token()
-
 class AuthenticationError(Exception):
     """Exception Raised when credentials in configuration are invalid"""
 
@@ -74,14 +63,26 @@ def datetime_handler(val):
         return val.isoformat()
     return str(val)
 
+def get_headers():
+    headers = {}
+    if is_internal_auth():
+        access_token = get_access_token()
+        headers = {
+            "x-dassana-tenant-id": get_tenant_id(),
+            "Authorization": f"Bearer {access_token}", 
+        }
+    else:
+        app_token = get_dassana_token()
+        headers = {
+            "Authorization": f"Dassana {app_token}"
+        }
+    return headers
+
 @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
 def get_ingestion_config(ingestion_config_id, app_id, tenant_id):
+    app_url = get_app_url()
     url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
-    access_token = get_access_token()
-    headers = {
-        "x-dassana-tenant-id": tenant_id,
-        "Authorization": f"Bearer {access_token}", 
-    }
+    headers = get_headers()
     if app_url.endswith("svc.cluster.local:443"):
         response = requests.request("GET", url, headers=headers, verify=False)
     else:
@@ -94,12 +95,9 @@ def get_ingestion_config(ingestion_config_id, app_id, tenant_id):
 
 @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
 def patch_ingestion_config(payload, ingestion_config_id, app_id, tenant_id):
+    app_url = get_app_url()
     url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
-    access_token = get_access_token()
-    headers = {
-        "x-dassana-tenant-id": tenant_id,
-        "Authorization": f"Bearer {access_token}",
-    }
+    headers = get_headers()
     if app_url.endswith("svc.cluster.local:443"):
         response = requests.request("PATCH", url, headers=headers, json=payload, verify=False)
     else:
@@ -109,14 +107,15 @@ def patch_ingestion_config(payload, ingestion_config_id, app_id, tenant_id):
 
 @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
 def get_access_token():
+    auth_url = get_auth_url()
     url = f"{auth_url}/oauth/token"
     if auth_url.endswith("svc.cluster.local"):
         response = requests.post(
             url,
             data={
                 "grant_type": "client_credentials",
-                "client_id": client_id,
-                "client_secret": client_secret,
+                "client_id": get_client_id(),
+                "client_secret": get_client_secret(),
             },
             verify=False
         )  
@@ -125,8 +124,8 @@ def get_access_token():
             url,
             data={
                 "grant_type": "client_credentials",
-                "client_id": client_id,
-                "client_secret": client_secret,
+                "client_id": get_client_id(),
+                "client_secret": get_client_secret(),
             }
         )
     try:
@@ -138,12 +137,10 @@ def get_access_token():
 
 @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
 def report_status(status, additionalContext, timeTakenInSec, recordsIngested, ingestion_config_id, app_id, tenant_id):
+    app_url = get_app_url()
     reportingURL = f"https://{app_url}/app/v1/{app_id}/status"
 
-    headers = {
-        "x-dassana-tenant-id": tenant_id,
-        "Authorization": f"Bearer {get_access_token()}",
-    }
+    headers = get_headers()
 
     payload = {
         "status": status,
@@ -188,7 +185,8 @@ class DassanaWriter:
         self.job_id = None
         self.initialize_client()
         self.file = open(self.file_path, 'a')
-
+        self.headers = get_headers()
+        self.ingestion_service_url = get_ingestion_srv_url()
 
     def get_file_path(self):
         epoch_ts = int(time.time())
@@ -221,7 +219,6 @@ class DassanaWriter:
             
             os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'service_account.json'
             self.client = storage.Client()
-
         elif self.storage_service == 'aws':
             stage_details = response['stageDetails']
             if "awsIamRoleArn" in stage_details:
@@ -246,8 +243,6 @@ class DassanaWriter:
             self.file = open(self.file_path, 'a')
             print(f"Ingested data: {self.bytes_written} bytes")
             self.bytes_written = 0
-        
-            
 
     def upload_to_cloud(self):
         if self.client is None:
@@ -355,12 +350,8 @@ class DassanaWriter:
     @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
     def update_ingestion_to_done(self, metadata):
         
-        access_token = get_access_token()
-        headers = {
-            "x-dassana-tenant-id": self.tenant_id,
-            "Authorization": f"Bearer {access_token}", 
-        }
-        res = requests.post(ingestion_service_url +"/job/"+self.job_id+"/"+"done", headers=headers, json={
+        headers = self.headers
+        res = requests.post(self.ingestion_service_url +"/job/"+self.job_id+"/"+"done", headers=headers, json={
             "metadata": metadata
         })
         print("Ingestion status updated to done")
@@ -368,12 +359,7 @@ class DassanaWriter:
 
     @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
     def get_ingestion_details(self):
-        access_token = get_access_token()
-
-        headers = {
-            "x-dassana-tenant-id": self.tenant_id,
-            "Authorization": f"Bearer {access_token}", 
-        }
+        headers = self.headers
         json_body = {
             "source": str(self.source),
             "recordType": str(self.record_type),
@@ -386,7 +372,7 @@ class DassanaWriter:
         if json_body["priority"] is None:
             del json_body["priority"]
         
-        res = requests.post(ingestion_service_url +"/job/", headers=headers, json=json_body)
+        res = requests.post(self.ingestion_service_url +"/job/", headers=headers, json=json_body)
         if(res.status_code == 200):
             return res.json()
 
@@ -395,12 +381,8 @@ class DassanaWriter:
     @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
     def cancel_ingestion_job(self, metadata, fail_type):
         
-        access_token = get_access_token()
-        headers = {
-            "x-dassana-tenant-id": self.tenant_id,
-            "Authorization": f"Bearer {access_token}", 
-        }
-        res = requests.post(ingestion_service_url +"/job/"+ self.job_id +"/"+fail_type, headers=headers, json={
+        headers = self.headers
+        res = requests.post(self.ingestion_service_url +"/job/"+ self.job_id +"/"+fail_type, headers=headers, json={
             "metadata": metadata
         })
         print("Ingestion status updated to " + str(fail_type))
