@@ -187,6 +187,8 @@ class DassanaWriter:
         self.file = open(self.file_path, 'a')
         self.headers = get_headers()
         self.ingestion_service_url = get_ingestion_srv_url()
+        self.is_internal_auth = is_internal_auth()
+        self.signed_url = None
 
     def get_file_path(self):
         epoch_ts = int(time.time())
@@ -245,10 +247,12 @@ class DassanaWriter:
             self.bytes_written = 0
 
     def upload_to_cloud(self):
-        if self.client is None:
+        if self.client is None and self.is_internal_auth:
             raise ValueError("Client not initialized.")
 
-        if self.storage_service == 'gcp':
+        if not self.is_internal_auth:
+            self.upload_to_signed_url()
+        elif self.storage_service == 'gcp':
             self.upload_to_gcp()
         elif self.storage_service == 'aws':
             self.upload_to_aws()
@@ -280,6 +284,19 @@ class DassanaWriter:
                 aws_session_token=temp_credentials['SessionToken'])
         
         self.client.upload_file(self.file_path, self.bucket_name, self.file_path)
+
+    def upload_to_signed_url(self):
+        self.get_signing_url()
+        if not self.signed_url:
+            raise ValueError("The signed URL has not been received")
+        
+        headers = {
+            'Content-Encoding': 'gzip',
+            'Content-Type': 'application/octet-stream'
+        }
+        with open(str(self.file_path) + ".gz", "rb") as read:
+            data = read.read()
+            requests.put(url=self.signed_url, data=data, headers=headers)
 
     def cancel_job(self, error_code, failure_reason, debug_log, pass_counter = 0, fail_counter = 0, fail_type = "failed"):
         metadata = {}
@@ -350,8 +367,7 @@ class DassanaWriter:
     @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
     def update_ingestion_to_done(self, metadata):
         
-        headers = self.headers
-        res = requests.post(self.ingestion_service_url +"/job/"+self.job_id+"/"+"done", headers=headers, json={
+        res = requests.post(self.ingestion_service_url +"/job/"+self.job_id+"/"+"done", headers=self.headers, json={
             "metadata": metadata
         })
         print("Ingestion status updated to done")
@@ -359,7 +375,7 @@ class DassanaWriter:
 
     @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
     def get_ingestion_details(self):
-        headers = self.headers
+        
         json_body = {
             "source": str(self.source),
             "recordType": str(self.record_type),
@@ -372,7 +388,7 @@ class DassanaWriter:
         if json_body["priority"] is None:
             del json_body["priority"]
         
-        res = requests.post(self.ingestion_service_url +"/job/", headers=headers, json=json_body)
+        res = requests.post(self.ingestion_service_url +"/job/", headers=self.headers, json=json_body)
         if(res.status_code == 200):
             return res.json()
 
@@ -381,9 +397,14 @@ class DassanaWriter:
     @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
     def cancel_ingestion_job(self, metadata, fail_type):
         
-        headers = self.headers
-        res = requests.post(self.ingestion_service_url +"/job/"+ self.job_id +"/"+fail_type, headers=headers, json={
+        res = requests.post(self.ingestion_service_url +"/job/"+ self.job_id +"/"+fail_type, headers=self.headers, json={
             "metadata": metadata
         })
         print("Ingestion status updated to " + str(fail_type))
+        return res.json()
+
+    @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
+    def get_signing_url(self):
+        res = requests.get(self.ingestion_service_url +"/job/"+self.job_id+"/"+"signing-url", headers=self.headers)
+        self.signed_url = res["url"]
         return res.json()
