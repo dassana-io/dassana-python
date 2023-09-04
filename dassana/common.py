@@ -181,14 +181,14 @@ class DassanaWriter:
         self.bucket_name = None
         self.blob = None
         self.full_file_path = None
-        self.file_path = self.get_file_path()
-        self.job_id = None
-        self.initialize_client()
-        self.file = open(self.file_path, 'a')
         self.headers = get_headers()
         self.ingestion_service_url = get_ingestion_srv_url()
         self.is_internal_auth = is_internal_auth()
         self.signed_url = None
+        self.file_path = self.get_file_path()
+        self.job_id = None
+        self.initialize_client()
+        self.file = open(self.file_path, 'a')
 
     def get_file_path(self):
         epoch_ts = int(time.time())
