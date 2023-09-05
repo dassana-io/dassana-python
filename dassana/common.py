@@ -300,6 +300,7 @@ class DassanaWriter:
     def cancel_job(self, error_code, failure_reason, debug_log, pass_counter = 0, fail_counter = 0, fail_type = "failed"):
         metadata = {}
         fail_type_status_metadata = "canceled" if str(fail_type) == "cancel" else str(fail_type)
+        job_result = {"failure_reason": failure_reason, "status": fail_type_status_metadata, "debug_log": debug_log, "pass": pass_counter, "fail": fail_counter, "error_code": error_code}
         metadata["job_result"] = job_result
         self.cancel_ingestion_job(metadata, fail_type)
         if os.path.exists("service_account.json"):
