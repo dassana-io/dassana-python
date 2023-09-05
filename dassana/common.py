@@ -165,7 +165,7 @@ def report_status(status, additionalContext, timeTakenInSec, recordsIngested, in
 
 class DassanaWriter:
     def __init__(self, tenant_id, source, record_type, config_id, metadata = {}, priority = None, is_snapshot = False):
-        print("Initialized common utility")
+        logging.info("Initialized common utility")
 
         self.source = source
         self.record_type = record_type
@@ -203,7 +203,7 @@ class DassanaWriter:
         with open(self.file_path, 'rb') as file_in:
             with gzip.open(f"{self.file_path}.gz", 'wb') as file_out:
                 file_out.writelines(file_in)
-        print("Compressed file completed")
+        logging.info("Compressed file completed")
     
     def initialize_client(self):
         try:
@@ -248,7 +248,7 @@ class DassanaWriter:
             self.upload_to_cloud()
             self.file_path = self.get_file_path()
             self.file = open(self.file_path, 'a')
-            print(f"Ingested data: {self.bytes_written} bytes")
+            logging.info(f"Ingested data: {self.bytes_written} bytes")
             self.bytes_written = 0
 
     def upload_to_cloud(self):
@@ -369,7 +369,7 @@ class DassanaWriter:
         if self.bytes_written > 0:
             self.compress_file()
             self.upload_to_cloud()
-            print(f"Ingested remaining data: {self.bytes_written} bytes")
+            logging.info(f"Ingested remaining data: {self.bytes_written} bytes")
             self.bytes_written = 0
         self.update_ingestion_to_done(metadata)
         if os.path.exists("service_account.json"):
@@ -381,7 +381,7 @@ class DassanaWriter:
         res = requests.post(self.ingestion_service_url +"/job/"+self.job_id+"/"+"done", headers=self.headers, json={
             "metadata": metadata
         })
-        print("Ingestion status updated to done")
+        logging.info("Ingestion status updated to done")
         return res.json()
 
     @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
@@ -401,6 +401,7 @@ class DassanaWriter:
         
         res = requests.post(self.ingestion_service_url +"/job/", headers=self.headers, json=json_body)
         if(res.status_code == 200):
+            logging.info("Ingestion job created")
             return res.json()
 
         return 0
@@ -411,7 +412,7 @@ class DassanaWriter:
         res = requests.post(self.ingestion_service_url +"/job/"+ self.job_id +"/"+fail_type, headers=self.headers, json={
             "metadata": metadata
         })
-        print("Ingestion status updated to " + str(fail_type))
+        logging.info("Ingestion status updated to " + str(fail_type))
         return res.json()
 
     @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
