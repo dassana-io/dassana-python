@@ -184,7 +184,6 @@ class DassanaWriter:
         self.headers = get_headers()
         self.ingestion_service_url = get_ingestion_srv_url()
         self.is_internal_auth = is_internal_auth()
-        self.signed_url = None
         self.file_path = self.get_file_path()
         self.job_id = None
         self.initialize_client()
@@ -286,8 +285,8 @@ class DassanaWriter:
         self.client.upload_file(self.file_path, self.bucket_name, self.file_path)
 
     def upload_to_signed_url(self):
-        self.get_signing_url()
-        if not self.signed_url:
+        signed_url = self.get_signing_url()
+        if not signed_url:
             raise ValueError("The signed URL has not been received")
         
         headers = {
@@ -296,11 +295,11 @@ class DassanaWriter:
         }
         with open(str(self.file_path) + ".gz", "rb") as read:
             data = read.read()
-            requests.put(url=self.signed_url, data=data, headers=headers)
+            requests.put(url=signed_url, data=data, headers=headers)
 
     def cancel_job(self, error_code, failure_reason, debug_log, pass_counter = 0, fail_counter = 0, fail_type = "failed"):
         metadata = {}
-        job_result = {"failure_reason": failure_reason, "status": str(fail_type), "debug_log": debug_log, "pass": pass_counter, "fail": fail_counter, "error_code": error_code}
+        fail_type_status_metadata = "canceled" if str(fail_type) == "cancel" else str(fail_type)
         metadata["job_result"] = job_result
         self.cancel_ingestion_job(metadata, fail_type)
         if os.path.exists("service_account.json"):
@@ -326,7 +325,7 @@ class DassanaWriter:
 
             elif(type(exception_from_src).__name__ == "InternalError"):
                 metadata = {}
-                job_result = {"failure_reason": exception_from_src.message, "status": "cancel", "debug_log": [str(exception_from_src)], "error_code": "other_error"}
+                job_result = {"failure_reason": exception_from_src.message, "status": "canceled", "debug_log": [str(exception_from_src)], "error_code": "other_error"}
                 metadata["job_result"] = job_result
                 self.cancel_ingestion_job(metadata, "cancel")
 
@@ -338,13 +337,13 @@ class DassanaWriter:
             
             else:
                 metadata = {}
-                job_result = {"failure_reason": str(exception_from_src), "status": "cancel", "debug_log": [str(exception_from_src)], "error_code": "other_error"}
+                job_result = {"failure_reason": str(exception_from_src), "status": "canceled", "debug_log": [str(exception_from_src)], "error_code": "other_error"}
                 metadata["job_result"] = job_result
                 self.cancel_ingestion_job(metadata, "cancel")
         
         except Exception as e:
             metadata = {}
-            job_result = {"failure_reason": str(e), "status": "cancel", "debug_log": [str(e)], "error_code": "other_error"}
+            job_result = {"failure_reason": str(e), "status": "canceled", "debug_log": [str(e)], "error_code": "other_error"}
             try:
                 self.cancel_ingestion_job({}, "cancel")
             except:
@@ -353,7 +352,7 @@ class DassanaWriter:
     def close(self, pass_counter, fail_counter, debug_log = set()):
         self.file.close()
         metadata = {}
-        job_result = {"status": "ready_for_download", "source": {"pass" : int(pass_counter), "fail": int(fail_counter), "debug_log": list(debug_log)}}
+        job_result = {"status": "ready_for_loading", "source": {"pass" : int(pass_counter), "fail": int(fail_counter), "debug_log": list(debug_log)}}
         metadata["job_result"] = job_result
         if self.bytes_written > 0:
             self.compress_file()
@@ -406,5 +405,5 @@ class DassanaWriter:
     @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
     def get_signing_url(self):
         res = requests.get(self.ingestion_service_url +"/job/"+self.job_id+"/"+"signing-url", headers=self.headers)
-        self.signed_url = res["url"]
-        return res.json()
+        signed_url = res["url"]
+        return signed_url
