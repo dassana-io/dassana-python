@@ -78,6 +78,9 @@ def get_headers():
         }
     return headers
 
+def get_exc_str(exc):
+    return str(exc.replace("\"", "").replace("'", "").replace("\n"," ").replace("\t"," "))
+
 @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
 def get_ingestion_config(ingestion_config_id, app_id, tenant_id):
     app_url = get_app_url()
@@ -172,6 +175,9 @@ class DassanaWriter:
         self.is_snapshot = is_snapshot
         self.tenant_id = tenant_id
         self.bytes_written = 0
+        self.fail_counter = 0
+        self.pass_counter = 0
+        self.debug_log = set()
         self.storage_service = None
         self.client = None
         self.aws_iam_role_arn = None
@@ -297,10 +303,11 @@ class DassanaWriter:
             data = read.read()
             requests.put(url=signed_url, data=data, headers=headers)
 
-    def cancel_job(self, error_code, failure_reason, debug_log, pass_counter = 0, fail_counter = 0, fail_type = "failed"):
+    def cancel_job(self, error_code, failure_reason, fail_type = "failed"):
         metadata = {}
         fail_type_status_metadata = "canceled" if str(fail_type) == "cancel" else str(fail_type)
-        job_result = {"failure_reason": failure_reason, "status": fail_type_status_metadata, "debug_log": debug_log, "pass": pass_counter, "fail": fail_counter, "error_code": error_code}
+        self.debug_log.add(get_exc_str(str(failure_reason)))
+        job_result = {"failure_reason": failure_reason, "status": fail_type_status_metadata, "debug_log": list(self.debug_log), "pass": self.pass_counter, "fail": self.fail_counter, "error_code": error_code}
         metadata["job_result"] = job_result
         self.cancel_ingestion_job(metadata, fail_type)
         if os.path.exists("service_account.json"):
@@ -310,50 +317,54 @@ class DassanaWriter:
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
         try:
+            str_exc = get_exc_str(str(exception_from_src))
             if(type(exception_from_src).__name__ == "ExternalError"):
                 metadata = {}
-                job_result = {"failure_reason": exception_from_src.message, "status": "failed", "debug_log": [str(exception_from_src)], "error_code": "other_error"}
+                self.debug_log.add(str_exc)
+                job_result = {"failure_reason": exception_from_src.message, "status": "failed", "debug_log": list(self.debug_log), "pass": self.pass_counter, "fail": self.fail_counter, "error_code": "other_error"}
                 metadata["job_result"] = job_result
                 self.cancel_ingestion_job(metadata, "failed")
 
             elif(type(exception_from_src).__name__ == "AuthenticationError"):
-                
-                debug_log = ["Auth Response: " + str(exception_from_src.response) + " Stack Trace: " + str(exception_from_src)]
+                self.debug_log.add("Auth Response: " + get_exc_str(str(exception_from_src.response)) + " Stack Trace: " + str_exc)
                 metadata = {}
-                job_result = {"failure_reason": exception_from_src.message, "status": "failed", "debug_log": debug_log, "error_code": "auth_error"}
+                job_result = {"failure_reason": exception_from_src.message, "status": "failed", "debug_log": list(self.debug_log), "pass": self.pass_counter, "fail": self.fail_counter, "error_code": "auth_error"}
                 metadata["job_result"] = job_result
                 self.cancel_ingestion_job(metadata, "failed")
 
             elif(type(exception_from_src).__name__ == "InternalError"):
+                self.debug_log.add(str_exc)
                 metadata = {}
-                job_result = {"failure_reason": exception_from_src.message, "status": "canceled", "debug_log": [str(exception_from_src)], "error_code": "other_error"}
+                job_result = {"failure_reason": exception_from_src.message, "status": "canceled", "debug_log": list(self.debug_log), "pass": self.pass_counter, "fail": self.fail_counter, "error_code": "other_error"}
                 metadata["job_result"] = job_result
                 self.cancel_ingestion_job(metadata, "cancel")
 
             elif(type(exception_from_src).__name__ == "StageWriteFailure"):
                 metadata = {}
-                job_result = {"failure_reason": exception_from_src.message, "status": "failed", "debug_log": [str(exception_from_src)], "error_code": "stage_write_failure"}
+                self.debug_log.add(str_exc)
+                job_result = {"failure_reason": exception_from_src.message, "status": "failed", "debug_log": list(self.debug_log), "pass": self.pass_counter, "fail": self.fail_counter, "error_code": "stage_write_failure"}
                 metadata["job_result"] = job_result
                 self.cancel_ingestion_job(metadata, "failed")
             
             else:
                 metadata = {}
-                job_result = {"failure_reason": str(exception_from_src), "status": "canceled", "debug_log": [str(exception_from_src)], "error_code": "other_error"}
+                self.debug_log.add(str_exc)
+                job_result = {"failure_reason": str(exception_from_src), "status": "canceled", "debug_log": list(self.debug_log), "pass": self.pass_counter, "fail": self.fail_counter, "error_code": "other_error"}
                 metadata["job_result"] = job_result
                 self.cancel_ingestion_job(metadata, "cancel")
         
         except Exception as e:
             metadata = {}
-            job_result = {"failure_reason": str(e), "status": "canceled", "debug_log": [str(e)], "error_code": "other_error"}
+            job_result = {"failure_reason": str(e), "status": "canceled", "debug_log": [str(e)], "pass": self.pass_counter, "fail": self.fail_counter, "error_code": "other_error"}
             try:
                 self.cancel_ingestion_job({}, "cancel")
             except:
                 raise
             
-    def close(self, pass_counter, fail_counter, debug_log = set()):
+    def close(self):
         self.file.close()
         metadata = {}
-        job_result = {"status": "ready_for_loading", "source": {"pass" : int(pass_counter), "fail": int(fail_counter), "debug_log": list(debug_log)}}
+        job_result = {"status": "ready_for_loading", "source": {"pass" : int(self.pass_counter), "fail": int(self.fail_counter), "debug_log": list(self.debug_log)}}
         metadata["job_result"] = job_result
         if self.bytes_written > 0:
             self.compress_file()
