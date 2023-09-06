@@ -82,7 +82,7 @@ def get_exc_str(exc):
     return str(exc.replace("\"", "").replace("'", "").replace("\n"," ").replace("\t"," "))
 
 @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
-def get_ingestion_config(ingestion_config_id, app_id, tenant_id):
+def get_ingestion_config(ingestion_config_id, app_id):
     app_url = get_app_url()
     url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
     headers = get_headers()
@@ -97,7 +97,7 @@ def get_ingestion_config(ingestion_config_id, app_id, tenant_id):
     return ingestion_config
 
 @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
-def patch_ingestion_config(payload, ingestion_config_id, app_id, tenant_id):
+def patch_ingestion_config(payload, ingestion_config_id, app_id):
     app_url = get_app_url()
     url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
     headers = get_headers()
@@ -139,7 +139,7 @@ def get_access_token():
     return access_token
 
 @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
-def report_status(status, additionalContext, timeTakenInSec, recordsIngested, ingestion_config_id, app_id, tenant_id):
+def report_status(status, additionalContext, timeTakenInSec, recordsIngested, ingestion_config_id, app_id):
     app_url = get_app_url()
     reportingURL = f"https://{app_url}/app/v1/{app_id}/status"
 
@@ -164,7 +164,7 @@ def report_status(status, additionalContext, timeTakenInSec, recordsIngested, in
         logging.info(f"Report request status: {resp.status_code}")
 
 class DassanaWriter:
-    def __init__(self, tenant_id, source, record_type, config_id, metadata = {}, priority = None, is_snapshot = False):
+    def __init__(self, source, record_type, config_id, metadata = {}, priority = None, is_snapshot = False):
         logging.info("Initialized common utility")
 
         self.source = source
@@ -173,7 +173,6 @@ class DassanaWriter:
         self.metadata = metadata
         self.priority = priority
         self.is_snapshot = is_snapshot
-        self.tenant_id = tenant_id
         self.bytes_written = 0
         self.fail_counter = 0
         self.pass_counter = 0
