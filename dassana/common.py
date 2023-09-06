@@ -213,18 +213,18 @@ class DassanaWriter:
         except Exception as e:
             raise InternalError("Failed to create ingestion job", "Error getting response from ingestion-srv with response body: " + str(response.text) + " and response header: " + str(response.headers) + " and stack trace: " +  str(e))
 
-
         if self.storage_service == 'gcp':
-            self.bucket_name = response['stageDetails']['bucket']
-            credentials = response['stageDetails']['serviceAccountCredentialsJson']
-            self.full_file_path = response['stageDetails']['filePath']
-        
-            with open('service_account.json', 'w') as f:
-                json.dump(json.loads(credentials), f, indent=4)
-                f.close()
+            if "bucket" in response["stageDetails"]:
+                self.bucket_name = response['stageDetails']['bucket']
+                credentials = response['stageDetails']['serviceAccountCredentialsJson']
+                self.full_file_path = response['stageDetails']['filePath']
             
-            os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'service_account.json'
-            self.client = storage.Client()
+                with open('service_account.json', 'w') as f:
+                    json.dump(json.loads(credentials), f, indent=4)
+                    f.close()
+                
+                os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'service_account.json'
+                self.client = storage.Client()
         elif self.storage_service == 'aws':
             stage_details = response['stageDetails']
             if "awsIamRoleArn" in stage_details:
@@ -417,5 +417,5 @@ class DassanaWriter:
     @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
     def get_signing_url(self):
         res = requests.get(self.ingestion_service_url +"/job/"+self.job_id+"/"+"signing-url", headers=self.headers)
-        signed_url = res["url"]
+        signed_url = res.json()["url"]
         return signed_url
