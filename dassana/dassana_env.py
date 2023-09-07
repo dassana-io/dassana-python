@@ -9,9 +9,7 @@ def get_app_id():
 
 def get_auth_url():
     if "DASSANA_AUTH_URL" not in os.environ:
-        raise KeyError(
-            "DASSANA_AUTH_URL environment variable is not set. Review your Lambda configuration."
-        )
+        return "https://auth.dassana.cloud"
     return os.environ["DASSANA_AUTH_URL"]
 
 def get_app_url():
