@@ -14,9 +14,7 @@ def get_auth_url():
 
 def get_app_url():
     if "DASSANA_APP_SERVICE_URL" not in os.environ:
-        raise KeyError(
-            "DASSANA_APP_SERVICE_URL environment variable is not set. Review your Lambda configuration."
-        )
+        return "app-manager.dassana.cloud"
     return os.environ["DASSANA_APP_SERVICE_URL"]
 
 def get_tenant_id():
