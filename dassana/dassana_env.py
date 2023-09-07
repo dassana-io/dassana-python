@@ -31,9 +31,7 @@ def get_if_debug():
 
 def get_ingestion_srv_url():
     if "DASSANA_INGESTION_SERVICE_URL" not in os.environ:
-        raise KeyError(
-            "DASSANA_INGESTION_SERVICE_URL environment variable is not set. Review your Lambda configuration."
-        )
+        return "https://ingestion-srv.dassana.cloud"
     return os.environ["DASSANA_INGESTION_SERVICE_URL"]
 
 def get_client_id():
