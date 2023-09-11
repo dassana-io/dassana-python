@@ -196,7 +196,9 @@ class DassanaWriter:
 
     def get_file_path(self):
         epoch_ts = int(time.time())
-        return f"/tmp/{epoch_ts}.ndjson"
+        if not self.is_internal_auth:
+            return f"/tmp/{epoch_ts}.ndjson"
+        return f"{epoch_ts}.ndjson"
 
     def compress_file(self):
         with open(self.file_path, 'rb') as file_in:
