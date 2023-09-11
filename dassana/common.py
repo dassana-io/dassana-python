@@ -192,7 +192,8 @@ class DassanaWriter:
         self.file_path = self.get_file_path()
         self.job_id = None
         self.initialize_client()
-        self.file = open(self.file_path, 'a')
+        if self.is_internal_auth:
+            self.file = open(self.file_path, 'a')
 
     def get_file_path(self):
         epoch_ts = int(time.time())
