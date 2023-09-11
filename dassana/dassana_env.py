@@ -9,16 +9,12 @@ def get_app_id():
 
 def get_auth_url():
     if "DASSANA_AUTH_URL" not in os.environ:
-        raise KeyError(
-            "DASSANA_AUTH_URL environment variable is not set. Review your Lambda configuration."
-        )
+        return "https://auth.dassana.cloud"
     return os.environ["DASSANA_AUTH_URL"]
 
 def get_app_url():
     if "DASSANA_APP_SERVICE_URL" not in os.environ:
-        raise KeyError(
-            "DASSANA_APP_SERVICE_URL environment variable is not set. Review your Lambda configuration."
-        )
+        return "app-manager.dassana.cloud"
     return os.environ["DASSANA_APP_SERVICE_URL"]
 
 def get_tenant_id():
@@ -35,9 +31,7 @@ def get_if_debug():
 
 def get_ingestion_srv_url():
     if "DASSANA_INGESTION_SERVICE_URL" not in os.environ:
-        raise KeyError(
-            "DASSANA_INGESTION_SERVICE_URL environment variable is not set. Review your Lambda configuration."
-        )
+        return "https://ingestion-srv.dassana.cloud"
     return os.environ["DASSANA_INGESTION_SERVICE_URL"]
 
 def get_client_id():
