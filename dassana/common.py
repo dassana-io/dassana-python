@@ -202,9 +202,9 @@ class DassanaWriter:
             return f"/tmp/{epoch_ts}.ndjson"
         return f"{epoch_ts}.ndjson"
 
-    def compress_file(self):
-        with open(self.file_path, 'rb') as file_in:
-            with gzip.open(f"{self.file_path}.gz", 'wb') as file_out:
+    def compress_file(self, file_name):
+        with open(file_name, 'rb') as file_in:
+            with gzip.open(f"{file_name}.gz", 'wb') as file_out:
                 file_out.writelines(file_in)
         logging.info("Compressed file completed")
     
@@ -248,7 +248,7 @@ class DassanaWriter:
         self.bytes_written = self.file.tell()
         if self.bytes_written >= 99 * 1000 * 1000:
             self.file.close()
-            self.compress_file()
+            self.compress_file(self.file_path)
             self.upload_to_cloud(self.file_path)
             self.file_path = self.get_file_path()
             self.file = open(self.file_path, 'a')
@@ -381,12 +381,13 @@ class DassanaWriter:
         job_result = {"status": "ready_for_loading", "source": {"pass" : int(self.pass_counter), "fail": int(self.fail_counter), "debug_log": list(self.debug_log)}}
         metadata["job_result"] = job_result
         if self.bytes_written > 0:
-            self.compress_file()
+            self.compress_file(self.file_path)
             self.upload_to_cloud(self.file_path)
             logging.info(f"Ingested remaining data: {self.bytes_written} bytes")
             self.bytes_written = 0
         for custom_file in self.custom_file_dict:
             self.custom_file_dict[custom_file].close()
+            self.compress_file(custom_file)
             self.upload_to_cloud(custom_file)
         self.update_ingestion_to_done(metadata)
         if os.path.exists("service_account.json"):
