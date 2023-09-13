@@ -191,6 +191,8 @@ class DassanaWriter:
         self.is_internal_auth = is_internal_auth()
         self.file_path = self.get_file_path()
         self.job_id = None
+        self.ingestion_metadata = None
+        self.custom_file_dict = dict()
         self.initialize_client()
         self.file = open(self.file_path, 'a')
 
@@ -200,9 +202,9 @@ class DassanaWriter:
             return f"/tmp/{epoch_ts}.ndjson"
         return f"{epoch_ts}.ndjson"
 
-    def compress_file(self):
-        with open(self.file_path, 'rb') as file_in:
-            with gzip.open(f"{self.file_path}.gz", 'wb') as file_out:
+    def compress_file(self, file_name):
+        with open(file_name, 'rb') as file_in:
+            with gzip.open(f"{file_name}.gz", 'wb') as file_out:
                 file_out.writelines(file_in)
         logging.info("Compressed file completed")
     
@@ -212,6 +214,7 @@ class DassanaWriter:
             
             self.storage_service = response['stageDetails']['cloud']
             self.job_id = response["jobId"]
+            self.ingestion_metadata = response["metadata"]
         except Exception as e:
             raise InternalError("Failed to create ingestion job", "Error getting response from ingestion-srv with response body: " + str(response.text) + " and response header: " + str(response.headers) + " and stack trace: " +  str(e))
 
@@ -245,34 +248,44 @@ class DassanaWriter:
         self.bytes_written = self.file.tell()
         if self.bytes_written >= 99 * 1000 * 1000:
             self.file.close()
-            self.compress_file()
-            self.upload_to_cloud()
+            self.compress_file(self.file_path)
+            self.upload_to_cloud(self.file_path)
             self.file_path = self.get_file_path()
             self.file = open(self.file_path, 'a')
             logging.info(f"Ingested data: {self.bytes_written} bytes")
             self.bytes_written = 0
 
-    def upload_to_cloud(self):
+    def write_custom_json(self, json_object, file_name):
+        if file_name in self.custom_file_dict:
+            custom_file = self.custom_file_dict[file_name]
+        else:
+            custom_file = open(file_name, 'a')
+            self.custom_file_dict[file_name] = custom_file
+        custom_file.flush()
+        json.dump(json_object, custom_file)
+        custom_file.write('\n')
+
+    def upload_to_cloud(self, file_name):
         if self.client is None and self.is_internal_auth:
             raise ValueError("Client not initialized.")
 
         if not self.is_internal_auth:
             self.upload_to_signed_url()
         elif self.storage_service == 'gcp':
-            self.upload_to_gcp()
+            self.upload_to_gcp(file_name)
         elif self.storage_service == 'aws':
-            self.upload_to_aws()
+            self.upload_to_aws(file_name)
         else:
             raise ValueError()
 
-    def upload_to_gcp(self):
+    def upload_to_gcp(self, file_name):
         if self.client is None:
             raise ValueError("GCP client not initialized.")
         
-        self.blob = self.client.bucket(self.bucket_name).blob(str(self.full_file_path) + "/" + str(self.file_path)+".gz")
-        self.blob.upload_from_filename(self.file_path + ".gz")
+        self.blob = self.client.bucket(self.bucket_name).blob(str(self.full_file_path) + "/" + str(file_name)+".gz")
+        self.blob.upload_from_filename(file_name + ".gz")
 
-    def upload_to_aws(self):
+    def upload_to_aws(self, file_name):
         if self.client is None or self.aws_sts_client is None:
             raise ValueError()
 
@@ -289,7 +302,7 @@ class DassanaWriter:
                 aws_secret_access_key=temp_credentials['SecretAccessKey'],
                 aws_session_token=temp_credentials['SessionToken'])
         
-        self.client.upload_file(self.file_path, self.bucket_name, self.file_path)
+        self.client.upload_file(file_name, self.bucket_name, str(self.full_file_path) + "/" + str(file_name)+".gz")
 
     def upload_to_signed_url(self):
         signed_url = self.get_signing_url()
@@ -368,10 +381,14 @@ class DassanaWriter:
         job_result = {"status": "ready_for_loading", "source": {"pass" : int(self.pass_counter), "fail": int(self.fail_counter), "debug_log": list(self.debug_log)}}
         metadata["job_result"] = job_result
         if self.bytes_written > 0:
-            self.compress_file()
-            self.upload_to_cloud()
+            self.compress_file(self.file_path)
+            self.upload_to_cloud(self.file_path)
             logging.info(f"Ingested remaining data: {self.bytes_written} bytes")
             self.bytes_written = 0
+        for custom_file in self.custom_file_dict:
+            self.custom_file_dict[custom_file].close()
+            self.compress_file(custom_file)
+            self.upload_to_cloud(custom_file)
         self.update_ingestion_to_done(metadata)
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
