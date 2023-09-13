@@ -191,6 +191,7 @@ class DassanaWriter:
         self.is_internal_auth = is_internal_auth()
         self.file_path = self.get_file_path()
         self.job_id = None
+        self.ingestion_metadata = None
         self.initialize_client()
         self.file = open(self.file_path, 'a')
 
@@ -212,6 +213,7 @@ class DassanaWriter:
             
             self.storage_service = response['stageDetails']['cloud']
             self.job_id = response["jobId"]
+            self.ingestion_metadata = response["metadata"]
         except Exception as e:
             raise InternalError("Failed to create ingestion job", "Error getting response from ingestion-srv with response body: " + str(response.text) + " and response header: " + str(response.headers) + " and stack trace: " +  str(e))
 
