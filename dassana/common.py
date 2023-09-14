@@ -218,12 +218,11 @@ class DassanaWriter:
         except Exception as e:
             raise InternalError("Failed to create ingestion job", "Error getting response from ingestion-srv with response body: " + str(response.text) + " and response header: " + str(response.headers) + " and stack trace: " +  str(e))
 
+        self.bucket_name = response['stageDetails']['bucket']
+        self.full_file_path = response['stageDetails']['filePath']
         if self.storage_service == 'gcp':
             if "bucket" in response["stageDetails"]:
-                self.bucket_name = response['stageDetails']['bucket']
                 credentials = response['stageDetails']['serviceAccountCredentialsJson']
-                self.full_file_path = response['stageDetails']['filePath']
-            
                 with open('service_account.json', 'w') as f:
                     json.dump(json.loads(credentials), f, indent=4)
                     f.close()
