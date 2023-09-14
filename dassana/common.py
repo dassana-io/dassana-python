@@ -266,8 +266,6 @@ class DassanaWriter:
         custom_file.write('\n')
 
     def upload_to_cloud(self, file_name):
-        if self.client is None and self.is_internal_auth:
-            raise ValueError("Client not initialized.")
 
         if not self.is_internal_auth:
             self.upload_to_signed_url()
