@@ -284,8 +284,8 @@ class DassanaWriter:
         self.blob.upload_from_filename(file_name + ".gz")
 
     def upload_to_aws(self, file_name):
-        if self.client is None or self.aws_sts_client is None:
-            raise ValueError()
+        if self.client is None and self.aws_sts_client is None:
+            raise ValueError("AWS client not initialized")
 
         if self.aws_iam_role_arn and (not self.aws_session_token_expiration or (self.aws_session_token_expiration < datetime.datetime.now() + datetime.timedelta(minutes=2))):
             assume_role_response = self.aws_sts_client.assume_role(
