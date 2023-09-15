@@ -292,7 +292,7 @@ class DassanaWriter:
                     RoleSessionName="DassanaIngestion",
                     ExternalId=self.aws_iam_external_id)
             temp_credentials = assume_role_response['Credentials']
-            self.aws_session_token_expiration = temp_credentials['SecretAccessKey']
+            self.aws_session_token_expiration = temp_credentials['Expiration']
             self.client = boto3.client(
                 's3',
                 aws_access_key_id=temp_credentials['AccessKeyId'],
