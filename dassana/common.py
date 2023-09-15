@@ -286,7 +286,7 @@ class DassanaWriter:
         if self.client is None and self.aws_sts_client is None:
             raise ValueError("AWS client not initialized")
 
-        if self.aws_iam_role_arn and (not self.aws_session_token_expiration or (self.aws_session_token_expiration < datetime.datetime.now() + datetime.timedelta(minutes=2))):
+        if self.aws_iam_role_arn and (not self.aws_session_token_expiration or (self.aws_session_token_expiration.timestamp() < (datetime.datetime.now() + datetime.timedelta(minutes=2)).timestamp())):
             assume_role_response = self.aws_sts_client.assume_role(
                     RoleArn=self.aws_iam_role_arn,
                     RoleSessionName="DassanaIngestion",
