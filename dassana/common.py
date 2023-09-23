@@ -419,7 +419,7 @@ class DassanaWriter:
         if(res.status_code == 200):
             return res.json()
         else:
-            logging.info(f"Failed to create ingestion job with response body: {res.text} and headers: {res.headers}")
+            logging.error(f"Failed to create ingestion job with response body: {res.text} and headers: {res.headers}")
             raise Exception()
 
 
