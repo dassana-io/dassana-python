@@ -214,9 +214,10 @@ class DassanaWriter:
             
             self.storage_service = response['stageDetails']['cloud']
             self.job_id = response["jobId"]
+            logging.info(f"Ingestion job created with job id: {self.job_id}")
             self.ingestion_metadata = response["metadata"]
         except Exception as e:
-            raise InternalError("Failed to create ingestion job", "Error getting response from ingestion-srv with response body: " + str(response.text) + " and response header: " + str(response.headers) + " and stack trace: " +  str(e))
+            raise InternalError("Failed to create ingestion job", "Error getting response from ingestion-srv with stack trace: " +  str(e))
 
         self.bucket_name = response['stageDetails']['bucket']
         self.full_file_path = response['stageDetails']['filePath']
@@ -416,10 +417,11 @@ class DassanaWriter:
         
         res = requests.post(self.ingestion_service_url +"/job/", headers=self.headers, json=json_body)
         if(res.status_code == 200):
-            logging.info("Ingestion job created")
             return res.json()
+        else:
+            logging.error(f"Failed to create ingestion job with response body: {res.text} and headers: {res.headers}")
+            raise Exception()
 
-        return 0
 
     @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
     def cancel_ingestion_job(self, metadata, fail_type):
