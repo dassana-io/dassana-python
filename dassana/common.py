@@ -234,9 +234,11 @@ class DassanaWriter:
             self.ingestion_metadata = response["metadata"]
         except Exception as e:
             raise InternalError("Failed to create ingestion job", "Error getting response from ingestion-srv with stack trace: " +  str(e))
+        
+        if "bucket" in response['stageDetails']:
+            self.bucket_name = response['stageDetails']['bucket']
+            self.full_file_path = response['stageDetails']['filePath']
 
-        self.bucket_name = response['stageDetails']['bucket']
-        self.full_file_path = response['stageDetails']['filePath']
         if self.storage_service == 'gcp':
             if "bucket" in response["stageDetails"]:
                 credentials = response['stageDetails']['serviceAccountCredentialsJson']
