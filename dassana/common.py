@@ -24,7 +24,7 @@ class AuthenticationError(Exception):
         return f"AuthenticationError: {self.message} (Response: {self.response})"
 
 class ExternalError(Exception):
-    """Exception Raised when credentials in configuration are invalid"""
+    """Exception Raised when an unexpected exception occured in an external service"""
 
     def __init__(self, message):
         super().__init__()
@@ -47,7 +47,6 @@ class InternalError(Exception):
 
     def __str__(self):
         return f"InternalError from {self.source}: {self.message}"
-        
 
 class StageWriteFailure(Exception):
     """Exception for StageWriteFailure"""
@@ -58,6 +57,23 @@ class StageWriteFailure(Exception):
     def __str__(self):
         return f"StageWriteFailure: {self.message}"
 
+class ApiResponseError(Exception):
+    """Exception Raised when API response is not as expected"""
+
+    def __init__(self, request_url, response_code, response_header, response_body, request_header):
+        super().__init__()
+        self.request_url = request_url
+        self.response_code = response_code
+        self.response_header = response_header
+        self.response_body = response_body
+        self.request_header = request_header
+    
+    def __str__(self):
+        return f"ApiResponseError:\n Endpoint:{self.request_url}\n Reponse Code:{self.response_code}\n Response Header:{self.response_header}\n Response Body:{self.response_body}\n Request Header: {self.request_header}"
+
+    def get_json(self):
+        return {"request_url": self.request_url, "response_code": self.response_code, "response_header": self.response_header, "response_body": self.response_body, "request_header": self.request_header}
+        
 def datetime_handler(val):
     if isinstance(val, datetime.datetime):
         return val.isoformat()
@@ -355,6 +371,12 @@ class DassanaWriter:
                 metadata = {}
                 self.debug_log.add(str_exc)
                 job_result = {"failure_reason": exception_from_src.message, "status": "failed", "debug_log": list(self.debug_log), "pass": self.pass_counter, "fail": self.fail_counter, "error_code": "stage_write_failure"}
+                metadata["job_result"] = job_result
+                self.cancel_ingestion_job(metadata, "failed")
+            elif(type(exception_from_src).__name__ == "ApiResponseError"):
+                metadata = {}
+                self.debug_log.add(str_exc)
+                job_result = {"failure_reason": exception_from_src.message, "status": "failed", "debug_log": list(self.debug_log), "pass": self.pass_counter, "fail": self.fail_counter, "error_code": "other_error", "api_response": exception_from_src.get_json()}
                 metadata["job_result"] = job_result
                 self.cancel_ingestion_job(metadata, "failed")
             
