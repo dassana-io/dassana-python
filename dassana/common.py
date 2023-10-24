@@ -397,9 +397,8 @@ class DassanaWriter:
             except:
                 raise
             
-    def close(self):
+    def close(self, metadata={}):
         self.file.close()
-        metadata = {}
         job_result = {"status": "ready_for_loading", "source": {"pass" : int(self.pass_counter), "fail": int(self.fail_counter), "debug_log": list(self.debug_log)}}
         metadata["job_result"] = job_result
         if self.bytes_written > 0:
