@@ -250,7 +250,7 @@ class DassanaWriter:
                 self.client = storage.Client()
         elif self.storage_service == 'aws':
             stage_details = response['stageDetails']
-            if "awsIamRoleArn" in stage_details:
+            if "awsIamRoleArn" in stage_details and stage_details["awsIamRoleArn"] is not None:
                 self.aws_sts_client = boto3.client('sts', aws_access_key_id=stage_details['accessKey'], aws_secret_access_key=stage_details['secretKey'])
                 self.aws_iam_role_arn = stage_details['awsIamRoleArn']
                 self.aws_iam_external_id = stage_details['awsIamExternalId']
