@@ -317,8 +317,9 @@ class DassanaWriter:
                 aws_access_key_id=temp_credentials['AccessKeyId'],
                 aws_secret_access_key=temp_credentials['SecretAccessKey'],
                 aws_session_token=temp_credentials['SessionToken'])
-        
-        self.client.upload_file(file_name + ".gz" , self.bucket_name, str(self.full_file_path) + "/" + str(file_name)+".gz")
+
+        self.client.put_object(Body=open(f"{file_name}.gz", 'rb'), Bucket=self.bucket_name, Key=f"{str(self.full_file_path)}/{str(file_name)}.gz")
+        # self.client.upload_file(file_name + ".gz" , self.bucket_name, str(self.full_file_path) + "/" + str(file_name)+".gz")
 
     def upload_to_signed_url(self):
         signed_url = self.get_signing_url()
