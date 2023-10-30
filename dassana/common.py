@@ -8,9 +8,15 @@ import requests
 import logging
 from .dassana_env import *
 import datetime
-from tenacity import retry, wait_fixed, stop_after_attempt
+from tenacity import retry, wait_fixed, stop_after_attempt, before_sleep_log
+from typing import Final
+import traceback
+import threading
 
+logger: Final = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
+job_list = set()
 
 class AuthenticationError(Exception):
     """Exception Raised when credentials in configuration are invalid"""
@@ -97,7 +103,41 @@ def get_headers():
 def get_exc_str(exc):
     return str(exc.replace("\"", "").replace("'", "").replace("\n"," ").replace("\t"," "))
 
-@retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
+@retry(reraise=True,
+before_sleep=before_sleep_log(logger, logging.INFO),
+wait=wait_fixed(30), 
+stop=stop_after_attempt(3))
+def patch_ingestion(job_id, metadata = {}):
+    json_body = {"metadata": metadata}
+    res = requests.patch(get_ingestion_srv_url() +"/job/"+ job_id, headers=get_headers(), json=json_body)
+    if(res.status_code == 200):
+        return res.json()
+    else:
+        logger.error(f"Failed to update ingestion job with response body: {res.text} and headers: {res.headers}")
+        raise Exception()
+
+def every(delay, task):
+  next_time = time.time() + delay
+  while True:
+    time.sleep(max(0, next_time - time.time()))
+    try:
+      task()
+    except Exception:
+      traceback.print_exc()
+    next_time += (time.time() - next_time) // delay * delay + delay
+
+def iterate_and_update_job_status():
+    global job_list
+    for job_id in job_list:
+        patch_ingestion(job_id)
+        logger.info(f"Updated job status for job id: {job_id}")
+
+threading.Thread(target=lambda: every(1800, iterate_and_update_job_status)).start()
+
+@retry(reraise=True,
+    before_sleep=before_sleep_log(logger, logging.INFO),
+    wait=wait_fixed(30), 
+    stop=stop_after_attempt(3))
 def get_ingestion_config(ingestion_config_id, app_id):
     app_url = get_app_url()
     url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
@@ -112,7 +152,10 @@ def get_ingestion_config(ingestion_config_id, app_id):
         raise InternalError("Failed to get ingestion config", "Error getting response from app-manager with response body: " + str(response.text) + " and response header: " + str(response.headers) + " and stack trace: " +  str(e))
     return ingestion_config
 
-@retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
+@retry(reraise=True,
+    before_sleep=before_sleep_log(logger, logging.INFO),
+    wait=wait_fixed(30), 
+    stop=stop_after_attempt(3))
 def patch_ingestion_config(payload, ingestion_config_id, app_id):
     app_url = get_app_url()
     url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
@@ -124,7 +167,10 @@ def patch_ingestion_config(payload, ingestion_config_id, app_id):
     
     return response.status_code
 
-@retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
+@retry(reraise=True,
+    before_sleep=before_sleep_log(logger, logging.INFO),
+    wait=wait_fixed(30), 
+    stop=stop_after_attempt(3))
 def get_access_token():
     auth_url = get_auth_url()
     url = f"{auth_url}/oauth/token"
@@ -154,7 +200,10 @@ def get_access_token():
 
     return access_token
 
-@retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
+@retry(reraise=True,
+    before_sleep=before_sleep_log(logger, logging.INFO),
+    wait=wait_fixed(30), 
+    stop=stop_after_attempt(3))
 def report_status(status, additionalContext, timeTakenInSec, recordsIngested, ingestion_config_id, app_id):
     app_url = get_app_url()
     reportingURL = f"https://{app_url}/app/v1/{app_id}/status"
@@ -171,17 +220,17 @@ def report_status(status, additionalContext, timeTakenInSec, recordsIngested, in
     if additionalContext:
         payload['additionalContext'] = additionalContext
 
-    logging.info(f"Reporting status: {json.dumps(payload)}")
+    logger.info(f"Reporting status: {json.dumps(payload)}")
     if app_url.endswith("svc.cluster.local:443"):
         resp = requests.Session().post(reportingURL, headers=headers, json=payload, verify=False)
-        logging.info(f"Report request status: {resp.status_code}")
+        logger.info(f"Report request status: {resp.status_code}")
     else:
         resp = requests.Session().post(reportingURL, headers=headers, json=payload)
-        logging.info(f"Report request status: {resp.status_code}")
+        logger.info(f"Report request status: {resp.status_code}")
 
 class DassanaWriter:
     def __init__(self, source, record_type, config_id, metadata = {}, priority = None, is_snapshot = False):
-        logging.info("Initialized common utility")
+        logger.info("Initialized common utility")
 
         self.source = source
         self.record_type = record_type
@@ -222,16 +271,18 @@ class DassanaWriter:
         with open(file_name, 'rb') as file_in:
             with gzip.open(f"{file_name}.gz", 'wb') as file_out:
                 file_out.writelines(file_in)
-        logging.info("Compressed file completed")
+        logger.info("Compressed file completed")
     
     def initialize_client(self):
+        global job_list
         try:
             response = self.get_ingestion_details()
             
             self.storage_service = response['stageDetails']['cloud']
             self.job_id = response["jobId"]
-            logging.info(f"Ingestion job created with job id: {self.job_id}")
+            logger.info(f"Ingestion job created with job id: {self.job_id}")
             self.ingestion_metadata = response["metadata"]
+            job_list.add(self.job_id)
         except Exception as e:
             raise InternalError("Failed to create ingestion job", "Error getting response from ingestion-srv with stack trace: " +  str(e))
         
@@ -270,7 +321,7 @@ class DassanaWriter:
             self.upload_to_cloud(self.file_path)
             self.file_path = self.get_file_path()
             self.file = open(self.file_path, 'a')
-            logging.info(f"Ingested data: {self.bytes_written} bytes")
+            logger.info(f"Ingested data: {self.bytes_written} bytes")
             self.bytes_written = 0
 
     def write_custom_json(self, json_object, file_name):
@@ -335,6 +386,8 @@ class DassanaWriter:
             requests.put(url=signed_url, data=data, headers=headers)
 
     def cancel_job(self, error_code, failure_reason, fail_type = "failed"):
+        global job_list
+        job_list.discard(self.job_id)
         metadata = {}
         fail_type_status_metadata = "canceled" if str(fail_type) == "cancel" else str(fail_type)
         self.debug_log.add(get_exc_str(str(failure_reason)))
@@ -345,6 +398,8 @@ class DassanaWriter:
             os.remove("service_account.json")
 
     def cancel_job(self, exception_from_src):
+        global job_list
+        job_list.discard(self.job_id)
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
         try:
@@ -399,13 +454,15 @@ class DassanaWriter:
                 raise
             
     def close(self, metadata={}):
+        global job_list
+        job_list.discard(self.job_id)
         self.file.close()
         job_result = {"status": "ready_for_loading", "source": {"pass" : int(self.pass_counter), "fail": int(self.fail_counter), "debug_log": list(self.debug_log)}}
         metadata["job_result"] = job_result
         if self.bytes_written > 0:
             self.compress_file(self.file_path)
             self.upload_to_cloud(self.file_path)
-            logging.info(f"Ingested remaining data: {self.bytes_written} bytes")
+            logger.info(f"Ingested remaining data: {self.bytes_written} bytes")
             self.bytes_written = 0
         for custom_file in self.custom_file_dict:
             self.custom_file_dict[custom_file].close()
@@ -415,16 +472,29 @@ class DassanaWriter:
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
 
-    @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
+    @retry(reraise=True,
+    before_sleep=before_sleep_log(logger, logging.INFO),
+    wait=wait_fixed(30), 
+    stop=stop_after_attempt(3))
     def update_ingestion_to_done(self, metadata):
         
         res = requests.post(self.ingestion_service_url +"/job/"+self.job_id+"/"+"done", headers=self.headers, json={
             "metadata": metadata
         })
-        logging.info("Ingestion status updated to done")
-        return res.json()
+        logger.info("Ingestion status updated to done")
+        logger.info(f"Response Status: {res.status_code}")
+        logger.info(f"Request Body: {res.request.body}")
+        logger.info(f"Response Body: {res.text}")
+        if(res.status_code == 200):
+            return res.json()
+        else:
+            logger.error(f"Failed to create ingestion job with response body: {res.text} and headers: {res.headers}")
+            raise Exception()
 
-    @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
+    @retry(reraise=True,
+    before_sleep=before_sleep_log(logger, logging.INFO),
+    wait=wait_fixed(30), 
+    stop=stop_after_attempt(3))
     def get_ingestion_details(self):
         
         json_body = {
@@ -443,20 +513,24 @@ class DassanaWriter:
         if(res.status_code == 200):
             return res.json()
         else:
-            logging.error(f"Failed to create ingestion job with response body: {res.text} and headers: {res.headers}")
+            logger.error(f"Failed to create ingestion job with response body: {res.text} and headers: {res.headers}")
             raise Exception()
 
-
-    @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
+    @retry(reraise=True,
+    before_sleep=before_sleep_log(logger, logging.INFO),
+    wait=wait_fixed(30),
+    stop=stop_after_attempt(3))
     def cancel_ingestion_job(self, metadata, fail_type):
-        
         res = requests.post(self.ingestion_service_url +"/job/"+ self.job_id +"/"+fail_type, headers=self.headers, json={
             "metadata": metadata
         })
-        logging.info("Ingestion status updated to " + str(fail_type))
+        logger.info("Ingestion status updated to " + str(fail_type))
         return res.json()
 
-    @retry(wait=wait_fixed(30), stop=stop_after_attempt(3))
+    @retry(reraise=True,
+    before_sleep=before_sleep_log(logger, logging.INFO),
+    wait=wait_fixed(30), 
+    stop=stop_after_attempt(3))
     def get_signing_url(self):
         res = requests.get(self.ingestion_service_url +"/job/"+self.job_id+"/"+"signing-url", headers=self.headers)
         signed_url = res.json()["url"]
