@@ -481,14 +481,14 @@ class DassanaWriter:
         res = requests.post(self.ingestion_service_url +"/job/"+self.job_id+"/"+"done", headers=self.headers, json={
             "metadata": metadata
         })
-        logger.info("Ingestion status updated to done")
         logger.info(f"Response Status: {res.status_code}")
         logger.info(f"Request Body: {res.request.body}")
         logger.info(f"Response Body: {res.text}")
         if(res.status_code == 200):
+            logger.info("Ingestion status updated to done")
             return res.json()
         else:
-            logger.error(f"Failed to create ingestion job with response body: {res.text} and headers: {res.headers}")
+            logger.error(f"Failed to update ingestion job status to done with response body: {res.text} and headers: {res.headers}")
             raise Exception()
 
     @retry(reraise=True,
@@ -524,8 +524,15 @@ class DassanaWriter:
         res = requests.post(self.ingestion_service_url +"/job/"+ self.job_id +"/"+fail_type, headers=self.headers, json={
             "metadata": metadata
         })
-        logger.info("Ingestion status updated to " + str(fail_type))
-        return res.json()
+        logger.info(f"Response Status: {res.status_code}")
+        logger.info(f"Request Body: {res.request.body}")
+        logger.info(f"Response Body: {res.text}")
+        if(res.status_code == 200):
+            logger.info("Ingestion status updated to " + str(fail_type))
+            return res.json()
+        else:
+            logger.error(f"Failed to cancel ingestion job with response body: {res.text} and headers: {res.headers}")
+            raise Exception()
 
     @retry(reraise=True,
     before_sleep=before_sleep_log(logger, logging.INFO),
