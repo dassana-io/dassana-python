@@ -564,8 +564,7 @@ class DassanaRequest:
     def post(self, url, data=None, json=None, auth=None, headers=None, params=None):
         try:
             response =  requests.post(url, headers=headers, data=data, json=json, params=params, auth=auth, timeout = 300)
-            self.statusValidator(response.status_code)
+            self.statusValidator(response)
             return response
         except Exception as e:
             raise e
-
