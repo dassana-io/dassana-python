@@ -545,26 +545,27 @@ class DassanaWriter:
         return signed_url
 
 class DassanaRequest:
-  def statusValidator(self, status):
-    if status == 200:
-      return
-    elif status==400:
-      raise BadRequest
-    elif status==401:
-      raise Unauthorized
-    elif status==404:
-      raise NotFound
-    elif status==408:
-      raise RequestTimeout
-    elif status==500:
-      raise InternalServerError
-    return
-  
-  @retry(retry=retry_if_exception_type((InternalServerError, BadRequest, NotFound, Unauthorized, RequestTimeout)), wait=wait_fixed(30), stop=stop_after_attempt(3), before_sleep=before_sleep_log(logger, logging.INFO), reraise=True)
-  def post(self, url, data=None, json=None, auth=None, headers=None, params=None):
-    try:
-      response =  requests.post(url, headers=headers, data=data, json=json, params=params, auth=auth, timeout = 300)
-      self.statusValidator(response.status_code)
-      return response
-    except Exception as e:
-      raise e
+    def statusValidator(self, response):
+        if response.status_code == 200:
+            return
+        elif response.status_code == 400:
+            raise BadRequest(response=response)
+        elif response.status_code == 401:
+            raise Unauthorized(response=response)
+        elif response.status_code == 404:
+            raise NotFound(response=response)
+        elif response.status_code == 408:
+            raise RequestTimeout(response=response)
+        elif response.status_code == 500:
+            raise InternalServerError(response=response)
+        return
+    
+    @retry(retry=retry_if_exception_type((InternalServerError, BadRequest, NotFound, Unauthorized, RequestTimeout)), wait=wait_fixed(30), stop=stop_after_attempt(3), before_sleep=before_sleep_log(logger, logging.INFO), reraise=True)
+    def post(self, url, data=None, json=None, auth=None, headers=None, params=None):
+        try:
+            response =  requests.post(url, headers=headers, data=data, json=json, params=params, auth=auth, timeout = 300)
+            self.statusValidator(response.status_code)
+            return response
+        except Exception as e:
+            raise e
+
