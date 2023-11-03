@@ -8,7 +8,8 @@ import requests
 import logging
 from .dassana_env import *
 import datetime
-from tenacity import retry, wait_fixed, stop_after_attempt, before_sleep_log
+from tenacity import retry, wait_fixed, stop_after_attempt, before_sleep_log, retry_if_exception_type
+from werkzeug.exceptions import InternalServerError, BadRequest, NotFound, Unauthorized, RequestTimeout
 from typing import Final
 import traceback
 import threading
@@ -542,3 +543,28 @@ class DassanaWriter:
         res = requests.get(self.ingestion_service_url +"/job/"+self.job_id+"/"+"signing-url", headers=self.headers)
         signed_url = res.json()["url"]
         return signed_url
+
+class DassanaRequest:
+  def statusValidator(self, status):
+    if status == '200':
+      return
+    elif status=='400':
+      raise BadRequest
+    elif status=='401':
+      raise Unauthorized
+    elif status=='404':
+      raise NotFound
+    elif status=='408':
+      raise RequestTimeout
+    elif status=='500':
+      raise InternalServerError
+    return
+  
+  @retry(retry=retry_if_exception_type((InternalServerError, BadRequest, NotFound, Unauthorized, RequestTimeout)), wait=wait_fixed(30), stop=stop_after_attempt(3), before_sleep=before_sleep_log(logger, logging.INFO), reraise=True)
+  def post(self, url, data=None, json=None, auth=None, headers=None, params=None):
+    try:
+      response =  requests.post(url, headers=headers, data=data, json=json, params=params, auth=auth)
+      self.statusValidator(str(response.status_code))
+      return response
+    except Exception as e:
+      raise e
