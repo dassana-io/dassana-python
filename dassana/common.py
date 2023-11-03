@@ -546,25 +546,25 @@ class DassanaWriter:
 
 class DassanaRequest:
   def statusValidator(self, status):
-    if status == '200':
+    if status == 200:
       return
-    elif status=='400':
+    elif status==400:
       raise BadRequest
-    elif status=='401':
+    elif status==401:
       raise Unauthorized
-    elif status=='404':
+    elif status==404:
       raise NotFound
-    elif status=='408':
+    elif status==408:
       raise RequestTimeout
-    elif status=='500':
+    elif status==500:
       raise InternalServerError
     return
   
   @retry(retry=retry_if_exception_type((InternalServerError, BadRequest, NotFound, Unauthorized, RequestTimeout)), wait=wait_fixed(30), stop=stop_after_attempt(3), before_sleep=before_sleep_log(logger, logging.INFO), reraise=True)
   def post(self, url, data=None, json=None, auth=None, headers=None, params=None):
     try:
-      response =  requests.post(url, headers=headers, data=data, json=json, params=params, auth=auth)
-      self.statusValidator(str(response.status_code))
+      response =  requests.post(url, headers=headers, data=data, json=json, params=params, auth=auth, timeout = 300)
+      self.statusValidator(response.status_code)
       return response
     except Exception as e:
       raise e
