@@ -252,7 +252,6 @@ class DassanaWriter:
         self.bucket_name = None
         self.blob = None
         self.full_file_path = None
-        # self.headers = get_headers()
         self.ingestion_service_url = get_ingestion_srv_url()
         self.is_internal_auth = is_internal_auth()
         self.file_path = self.get_file_path()
@@ -525,9 +524,9 @@ class DassanaWriter:
         res = requests.post(self.ingestion_service_url +"/job/"+ self.job_id +"/"+fail_type, headers=get_headers(), json={
             "metadata": metadata
         })
-        logger.info(f"Response Status: {res.status_code}")
-        logger.info(f"Request Body: {res.request.body}")
-        logger.info(f"Response Body: {res.text}")
+        logger.debug(f"Response Status: {res.status_code}")
+        logger.debug(f"Request Body: {res.request.body}")
+        logger.debug(f"Response Body: {res.text}")
         if(res.status_code == 200):
             logger.info("Ingestion status updated to " + str(fail_type))
             return res.json()
