@@ -229,9 +229,10 @@ def report_status(status, additionalContext, timeTakenInSec, recordsIngested, in
         logger.info(f"Report request status: {resp.status_code}")
 
 class DassanaWriter:
-    def __init__(self, source, record_type, config_id, metadata = {}, priority = None, is_snapshot = False):
+    def __init__(self, source, record_type, config_id, metadata = {}, priority = None, is_snapshot = False, file_size_limit = 249):
         logger.info("Initialized common utility")
-
+        
+        self.file_size_limit = file_size_limit
         self.source = source
         self.record_type = record_type
         self.config_id = config_id
@@ -315,7 +316,7 @@ class DassanaWriter:
         json.dump(json_object, self.file)
         self.file.write('\n')
         self.bytes_written = self.file.tell()
-        if self.bytes_written >= 249 * 1000 * 1000:
+        if self.bytes_written >= int(self.file_size_limit) * 1000 * 1000:
             self.file.close()
             self.compress_file(self.file_path)
             self.upload_to_cloud(self.file_path)
