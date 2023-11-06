@@ -251,7 +251,7 @@ class DassanaWriter:
         self.bucket_name = None
         self.blob = None
         self.full_file_path = None
-        self.headers = get_headers()
+        # self.headers = get_headers()
         self.ingestion_service_url = get_ingestion_srv_url()
         self.is_internal_auth = is_internal_auth()
         self.file_path = self.get_file_path()
@@ -478,13 +478,13 @@ class DassanaWriter:
     stop=stop_after_attempt(3))
     def update_ingestion_to_done(self, metadata):
         
-        res = requests.post(self.ingestion_service_url +"/job/"+self.job_id+"/"+"done", headers=self.headers, json={
+        res = requests.post(self.ingestion_service_url +"/job/"+self.job_id+"/"+"done", headers=get_headers(), json={
             "metadata": metadata
         })
         logger.info(f"Response Status: {res.status_code}")
         logger.info(f"Request Body: {res.request.body}")
         logger.info(f"Response Body: {res.text}")
-        if(res.status_code == 200):
+        if res.status_code == 200:
             logger.info("Ingestion status updated to done")
             return res.json()
         else:
@@ -509,7 +509,7 @@ class DassanaWriter:
         if json_body["priority"] is None:
             del json_body["priority"]
         
-        res = requests.post(self.ingestion_service_url +"/job/", headers=self.headers, json=json_body)
+        res = requests.post(self.ingestion_service_url +"/job/", headers=get_headers(), json=json_body)
         if(res.status_code == 200):
             return res.json()
         else:
@@ -521,7 +521,7 @@ class DassanaWriter:
     wait=wait_fixed(30),
     stop=stop_after_attempt(3))
     def cancel_ingestion_job(self, metadata, fail_type):
-        res = requests.post(self.ingestion_service_url +"/job/"+ self.job_id +"/"+fail_type, headers=self.headers, json={
+        res = requests.post(self.ingestion_service_url +"/job/"+ self.job_id +"/"+fail_type, headers=get_headers(), json={
             "metadata": metadata
         })
         logger.info(f"Response Status: {res.status_code}")
@@ -539,6 +539,6 @@ class DassanaWriter:
     wait=wait_fixed(30), 
     stop=stop_after_attempt(3))
     def get_signing_url(self):
-        res = requests.get(self.ingestion_service_url +"/job/"+self.job_id+"/"+"signing-url", headers=self.headers)
+        res = requests.get(self.ingestion_service_url +"/job/"+self.job_id+"/"+"signing-url", headers=get_headers())
         signed_url = res.json()["url"]
         return signed_url
