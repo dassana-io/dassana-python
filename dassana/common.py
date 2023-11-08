@@ -561,7 +561,7 @@ class DassanaRequest:
             raise InternalServerError(response=response)
         return
     
-    @retry(retry=retry_if_exception_type((InternalServerError, BadRequest, NotFound, RequestTimeout, ReadTimeout, TimeoutError)), wait=wait_fixed(30), stop=stop_after_attempt(3), before_sleep=before_sleep_log(logger, logging.INFO), reraise=True)
+    @retry(retry=retry_if_exception_type((InternalServerError, BadRequest, NotFound, RequestTimeout, TimeoutError)), wait=wait_fixed(30), stop=stop_after_attempt(3), before_sleep=before_sleep_log(logger, logging.INFO), reraise=True)
     def post(self, url, data=None, json=None, auth=None, headers=None, params=None, timeout=300):
         try:
             response =  requests.post(url, headers=headers, data=data, json=json, params=params, auth=auth, timeout = timeout)
