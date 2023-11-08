@@ -10,7 +10,7 @@ from .dassana_env import *
 import datetime
 from tenacity import retry, wait_fixed, stop_after_attempt, before_sleep_log, retry_if_exception_type
 from werkzeug.exceptions import InternalServerError, BadRequest, NotFound, Unauthorized, RequestTimeout
-from requests.exceptions import ReadTimeout
+from requests.exceptions import Timeout
 from typing import Final
 import traceback
 import threading
@@ -561,7 +561,7 @@ class DassanaRequest:
             raise InternalServerError(response=response)
         return
     
-    @retry(retry=retry_if_exception_type((InternalServerError, BadRequest, NotFound, RequestTimeout, TimeoutError)), wait=wait_fixed(30), stop=stop_after_attempt(3), before_sleep=before_sleep_log(logger, logging.INFO), reraise=True)
+    @retry(retry=retry_if_exception_type((InternalServerError, BadRequest, NotFound, RequestTimeout, Timeout, TimeoutError)), wait=wait_fixed(30), stop=stop_after_attempt(3), before_sleep=before_sleep_log(logger, logging.INFO), reraise=True)
     def post(self, url, data=None, json=None, auth=None, headers=None, params=None, timeout=300):
         try:
             response =  requests.post(url, headers=headers, data=data, json=json, params=params, auth=auth, timeout = timeout)
