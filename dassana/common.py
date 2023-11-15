@@ -132,7 +132,7 @@ def iterate_and_update_job_status():
         patch_ingestion(job_id)
         logger.info(f"Updated job status for job id: {job_id}")
 
-threading.Thread(target=lambda: every(1800, iterate_and_update_job_status, daemon=True)).start()
+threading.Thread(target=lambda: every(1800, iterate_and_update_job_status), daemon=True).start()
 
 @retry(reraise=True,
     before_sleep=before_sleep_log(logger, logging.INFO),
