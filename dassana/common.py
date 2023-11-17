@@ -283,6 +283,7 @@ class DassanaWriter:
             self.job_id = response["jobId"]
             logger.info(f"Ingestion job created with job id: {self.job_id}")
             self.ingestion_metadata = response["metadata"]
+            self.ingestion_metadata["creationTs"] = response["creationTs"]
             job_list.add(self.job_id)
         except Exception as e:
             raise InternalError("Failed to create ingestion job", "Error getting response from ingestion-srv with stack trace: " +  str(e))
