@@ -481,9 +481,9 @@ class DassanaWriter:
         res = requests.post(self.ingestion_service_url +"/job/"+self.job_id+"/"+"done", headers=get_headers(), json={
             "metadata": metadata
         })
-        logger.info(f"Response Status: {res.status_code}")
-        logger.info(f"Request Body: {res.request.body}")
-        logger.info(f"Response Body: {res.text}")
+        logger.debug(f"Response Status: {res.status_code}")
+        logger.debug(f"Request Body: {res.request.body}")
+        logger.debug(f"Response Body: {res.text}")
         if res.status_code == 200:
             logger.info("Ingestion status updated to done")
             return res.json()
