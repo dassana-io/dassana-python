@@ -434,7 +434,7 @@ class DassanaWriter:
             elif(type(exception_from_src).__name__ == "ApiResponseError"):
                 metadata = {}
                 self.debug_log.add(str_exc)
-                job_result = {"failure_reason": exception_from_src.message, "status": "failed", "debug_log": list(self.debug_log), "pass": self.pass_counter, "fail": self.fail_counter, "error_code": "other_error", "api_response": exception_from_src.get_json()}
+                job_result = {"failure_reason": exception_from_src, "status": "failed", "debug_log": list(self.debug_log), "pass": self.pass_counter, "fail": self.fail_counter, "error_code": "other_error", "api_response": exception_from_src.get_json()}
                 metadata["job_result"] = job_result
                 self.cancel_ingestion_job(metadata, "failed")
             
