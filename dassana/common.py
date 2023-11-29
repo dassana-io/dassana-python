@@ -78,7 +78,7 @@ class ApiResponseError(Exception):
         return f"ApiResponseError:\n Endpoint:{self.request_url}\n Reponse Code:{self.response_code}\n Response Header:{self.response_header}\n Response Body:{self.response_body}\n Request Header: {self.request_header}"
 
     def get_json(self):
-        return {"request_url": self.request_url, "response_code": self.response_code, "response_header": self.response_header, "response_body": self.response_body, "request_header": self.request_header}
+        return json.dumps({"request_url": self.request_url, "response_code": self.response_code, "response_header": self.response_header, "response_body": self.response_body, "request_header": self.request_header})
         
 def datetime_handler(val):
     if isinstance(val, datetime.datetime):
@@ -435,7 +435,7 @@ class DassanaWriter:
             elif(type(exception_from_src).__name__ == "ApiResponseError"):
                 metadata = {}
                 self.debug_log.add(str_exc)
-                job_result = {"failure_reason": exception_from_src, "status": "failed", "debug_log": list(self.debug_log), "pass": self.pass_counter, "fail": self.fail_counter, "error_code": "other_error", "api_response": exception_from_src.get_json()}
+                job_result = {"failure_reason": exception_from_src.__str__(), "status": "failed", "debug_log": list(self.debug_log), "pass": self.pass_counter, "fail": self.fail_counter, "error_code": "other_error", "api_response": exception_from_src.get_json()}
                 metadata["job_result"] = job_result
                 self.cancel_ingestion_job(metadata, "failed")
             
