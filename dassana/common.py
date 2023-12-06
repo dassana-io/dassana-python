@@ -12,6 +12,7 @@ from tenacity import retry, wait_fixed, stop_after_attempt, before_sleep_log
 from typing import Final
 import traceback
 import threading
+from pathlib import Path
 
 logger: Final = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -345,6 +346,8 @@ class DassanaWriter:
             self.upload_to_aws(file_name)
         else:
             raise ValueError()
+        Path.unlink(file_name)
+        Path.unlink(file_name + ".gz")
 
     def upload_to_gcp(self, file_name):
         if self.client is None:
