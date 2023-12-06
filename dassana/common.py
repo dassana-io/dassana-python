@@ -342,14 +342,12 @@ class DassanaWriter:
             self.upload_to_signed_url()
         elif self.storage_service == 'gcp':
             self.upload_to_gcp(file_name)
-            Path.unlink(file_name)
-            Path.unlink(file_name + ".gz")
         elif self.storage_service == 'aws':
             self.upload_to_aws(file_name)
-            Path.unlink(file_name)
-            Path.unlink(file_name + ".gz")
         else:
             raise ValueError()
+        Path.unlink(file_name)
+        Path.unlink(file_name + ".gz")
 
     def upload_to_gcp(self, file_name):
         if self.client is None:
