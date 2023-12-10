@@ -363,13 +363,13 @@ class DassanaWriter:
                                  "debug_log": list(self.debug_log)}}
         metadata["job_result"] = job_result
         if self.bytes_written > 0:
-            self.compress_file(self.file_path)
+            compress_file(self.file_path)
             self.upload_to_cloud(self.file_path)
             logger.info(f"Ingested remaining data: {self.bytes_written} bytes")
             self.bytes_written = 0
         for custom_file in self.custom_file_dict:
             self.custom_file_dict[custom_file].close()
-            self.compress_file(custom_file)
+            compress_file(custom_file)
             self.upload_to_cloud(custom_file)
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
