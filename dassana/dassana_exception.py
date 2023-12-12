@@ -81,6 +81,7 @@ class ApiError(DassanaException):
     def __init__(self, http_request: ApiRequest, http_response: ApiResponse, is_internal, error_type="internal_error",
                  message="Something went wrong", error_details=None, is_auto_recoverable=False):
         super().__init__(message, error_details)
+        self.error_details = error_details or "no details provided"
         self.httpRequest = http_request
         if http_response is not None:
             self.httpResponse = http_response
