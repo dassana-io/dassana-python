@@ -10,7 +10,7 @@ import boto3
 import requests
 from google.cloud import storage
 
-from .api import Api
+from .api import call_api
 from .dassana_env import *
 from .dassana_exception import *
 
@@ -57,8 +57,8 @@ def patch_ingestion(job_id, metadata=None):
     if metadata is None:
         metadata = {}
     json_body = {"metadata": metadata}
-    res = Api('PATCH', get_ingestion_srv_url() + "/job/" + job_id, headers=get_headers(), json=json_body,
-              is_internal=True).call_api()
+    res = call_api('PATCH', get_ingestion_srv_url() + "/job/" + job_id, headers=get_headers(), json=json_body,
+              is_internal=True)
     return res.json()
 
 
@@ -87,8 +87,8 @@ def get_ingestion_config(ingestion_config_id, app_id):
     app_url = get_app_url()
     url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
     headers = get_headers()
-    response = Api("GET", url, headers=headers, verify=False if app_url.endswith("svc.cluster.local:443") else True,
-                   is_internal=True).call_api()
+    response = call_api("GET", url, headers=headers, verify=False if app_url.endswith("svc.cluster.local:443") else True,
+                   is_internal=True)
     return response.json()
 
 
@@ -100,8 +100,8 @@ def get_access_token():
         "client_id": get_client_id(),
         "client_secret": get_client_secret(),
     }
-    response = Api("POST", url, data=data, verify=False if auth_url.endswith("svc.cluster.local:443") else True,
-                   is_internal=True).call_api()
+    response = call_api("POST", url, data=data, verify=False if auth_url.endswith("svc.cluster.local:443") else True,
+                   is_internal=True)
     return response.json()["access_token"]
 
 
@@ -379,8 +379,8 @@ class DassanaWriter:
         json_body = {
             "metadata": metadata
         }
-        res = Api("POST", self.ingestion_service_url + "/job/" + self.job_id + "/" + "done", headers=get_headers(),
-                  json=json_body, is_internal=True).call_api()
+        res = call_api("POST", self.ingestion_service_url + "/job/" + self.job_id + "/" + "done", headers=get_headers(),
+                  json=json_body, is_internal=True)
         logger.debug(f"Response Status: {res.status_code}")
         logger.debug(f"Request Body: {res.request.body}")
         logger.debug(f"Response Body: {res.text}")
@@ -398,23 +398,23 @@ class DassanaWriter:
         if json_body["priority"] is None:
             del json_body["priority"]
 
-        res = Api("POST", self.ingestion_service_url + "/job/", headers=get_headers(), json=json_body,
-                  is_internal=True).call_api()
+        res = call_api("POST", self.ingestion_service_url + "/job/", headers=get_headers(), json=json_body,
+                  is_internal=True)
         return res.json()
 
     def cancel_ingestion_job(self, metadata, fail_type):
         json_body = {
             "metadata": metadata
         }
-        res = Api("POST", self.ingestion_service_url + "/job/" + self.job_id + "/" + fail_type, headers=get_headers(),
-                  json=json_body, is_internal=True).call_api()
+        res = call_api("POST", self.ingestion_service_url + "/job/" + self.job_id + "/" + fail_type, headers=get_headers(),
+                  json=json_body, is_internal=True)
         logger.debug(f"Response Status: {res.status_code}")
         logger.debug(f"Request Body: {res.request.body}")
         logger.debug(f"Response Body: {res.text}")
         return res.json()
 
     def get_signing_url(self):
-        res = Api("GET", self.ingestion_service_url + "/job/" + self.job_id + "/" + "signing-url",
-                  headers=get_headers(), is_internal=True).call_api()
+        res = call_api("GET", self.ingestion_service_url + "/job/" + self.job_id + "/" + "signing-url",
+                  headers=get_headers(), is_internal=True)
         signed_url = res.json()["url"]
         return signed_url

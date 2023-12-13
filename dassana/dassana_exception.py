@@ -11,8 +11,7 @@ class DassanaException(Exception):
     def __init__(self, message, error_details=None):
         super().__init__()
         self.message = message
-        if error_details is not None:
-            self.error_details = error_details
+        self.error_details = error_details
 
     def __str__(self):
         error_msg = f"[{self.error_type}] {self.message}"
