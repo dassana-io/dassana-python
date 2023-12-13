@@ -58,7 +58,7 @@ def status_validator(http_request, http_response, is_internal, ignore_not_found_
         raise NetworkError(http_request, http_response, is_internal=is_internal)
     elif http_response.status_code == 429:
         raise RateLimitError(http_request, http_response, is_internal=is_internal)
-    elif 500 <= http_response.status_code < 599:
+    elif int(http_response.status_code/100) == 5:
         raise ServerError(http_request, http_response, is_internal=is_internal)
     else:
         raise ApiError(http_request, http_response, is_internal=is_internal, is_auto_recoverable=True)
