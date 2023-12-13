@@ -44,7 +44,7 @@ def api_request(method, url, data=None, json=None, auth=None, headers=None, para
         api_end_ts = timeit.default_timer()
 
 def status_validator(http_request, http_response, is_internal, ignore_not_found_error):
-    if http_response.status_code in (200, 201):
+    if int(http_response.status_code/100) == 2:
         return
     elif http_response.status_code == 400:
         raise ApiError(http_request, http_response, is_internal=is_internal, is_auto_recoverable=False)
