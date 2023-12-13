@@ -1,5 +1,6 @@
 import timeit
 import requests
+from requests.models import Response
 import logging
 from tenacity import retry, stop_after_attempt, before_sleep_log, retry_if_exception, wait_exponential
 from typing import Final
@@ -9,7 +10,7 @@ from .dassana_exception import ApiRequest, ApiResponse, ApiError, NetworkError, 
 logger: Final = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-def call_api(method, url, data=None, json=None, auth=None, headers=None, params=None, cookies=None, timeout=300, verify=True, is_internal=False, ignore_not_found_error=False, new_status_validator=None):
+def call_api(method, url, data=None, json=None, auth=None, headers=None, params=None, cookies=None, timeout=300, verify=True, is_internal=False, ignore_not_found_error=False, new_status_validator=None)-> Response:
     try:
         response = api_request(method, url, data, json, auth, headers, params, cookies, timeout, verify, is_internal, ignore_not_found_error, new_status_validator)
         logging.debug(f"API request successful (url - {url} body - {data or json})")
@@ -24,7 +25,7 @@ def call_api(method, url, data=None, json=None, auth=None, headers=None, params=
     stop=stop_after_attempt(3),
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True)
-def api_request(method, url, data=None, json=None, auth=None, headers=None, params=None, cookies=None, timeout=300, verify=True, is_internal=False, ignore_not_found_error=False, new_status_validator=None):
+def api_request(method, url, data=None, json=None, auth=None, headers=None, params=None, cookies=None, timeout=300, verify=True, is_internal=False, ignore_not_found_error=False, new_status_validator=None)-> Response:
     try:
         global status_validator
         api_start_ts = timeit.default_timer()
