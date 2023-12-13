@@ -10,9 +10,9 @@ from .dassana_exception import ApiRequest, ApiResponse, ApiError, NetworkError, 
 logger: Final = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-def call_api(method, url, data=None, json=None, auth=None, headers=None, params=None, cookies=None, timeout=300, verify=True, is_internal=False, ignore_not_found_error=False, new_status_validator=None)-> Response:
+def call_api(method, url, data=None, json=None, auth=None, headers=None, params=None, cookies=None, timeout=300, verify=True, stream = False, is_internal=False, ignore_not_found_error=False, new_status_validator=None)-> Response:
     try:
-        response = api_request(method, url, data, json, auth, headers, params, cookies, timeout, verify, is_internal, ignore_not_found_error, new_status_validator)
+        response = api_request(method, url, data, json, auth, headers, params, cookies, timeout, verify, stream, is_internal, ignore_not_found_error, new_status_validator)
         logging.debug(f"API request successful (url - {url} body - {data or json})")
         return response
     except ApiError as e:
@@ -25,12 +25,12 @@ def call_api(method, url, data=None, json=None, auth=None, headers=None, params=
     stop=stop_after_attempt(3),
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True)
-def api_request(method, url, data=None, json=None, auth=None, headers=None, params=None, cookies=None, timeout=300, verify=True, is_internal=False, ignore_not_found_error=False, new_status_validator=None)-> Response:
+def api_request(method, url, data=None, json=None, auth=None, headers=None, params=None, cookies=None, timeout=300, verify=True, stream = False, is_internal=False, ignore_not_found_error=False, new_status_validator=None)-> Response:
     try:
         global status_validator
         api_start_ts = timeit.default_timer()
         http_request = ApiRequest(url, data or json)
-        response = requests.request(method, url, headers=headers, data=data, json=json, params=params, auth=auth, timeout=timeout, cookies=cookies, verify=verify)
+        response = requests.request(method, url, headers=headers, data=data, json=json, params=params, auth=auth, timeout=timeout, cookies=cookies, verify=verify, stream=stream)
         http_response = ApiResponse().fromResponse(response)
         status_validator = new_status_validator or status_validator
         status_validator(http_request, http_response, is_internal, ignore_not_found_error)
