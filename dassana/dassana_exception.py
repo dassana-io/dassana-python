@@ -135,6 +135,15 @@ class RateLimitError(ApiError):
         super().__init__(request, response, error_type=self.error_type, message=self.message, is_auto_recoverable=True,
                          is_internal=is_internal)
 
+class BadResponseError(ApiError):
+    """Exception Raised when api response is unexpected even if it is successful"""
+    error_type = "bad_response"
+    message = "Unexpected response"
+
+    def __init__(self, request, response=None, is_internal=False):
+        super().__init__(request, response, error_type=self.error_type, message=self.message, is_auto_recoverable=False,
+                         is_internal=is_internal)
+
 
 class ExternalError(DassanaException):
     """Exception Raised when an unexpected exception occurred in an external service"""
