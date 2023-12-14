@@ -140,7 +140,7 @@ class BadResponseError(ApiError):
     error_type = "bad_response"
     message = "Unexpected response"
 
-    def __init__(self, request, response, is_internal=False):
+    def __init__(self, request, response=None, is_internal=False):
         super().__init__(request, response, error_type=self.error_type, message=self.message, is_auto_recoverable=False,
                          is_internal=is_internal)
 
