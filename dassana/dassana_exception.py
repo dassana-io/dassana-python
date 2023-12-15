@@ -40,6 +40,9 @@ class ApiRequest:
         if self.body is not None:
             request_str += f"Body: {self.body} "
         return request_str
+    
+    def __json__(self):
+        return json.dumps(self.__dict__)
 
 
 class ApiResponse:
@@ -54,7 +57,7 @@ class ApiResponse:
         if status_message is not None:
             self.status_message = status_message
         if headers is not None:
-            self.headers = headers
+            self.headers = str(headers)
         if body is not None:
             self.body = str(body)
 
@@ -71,6 +74,9 @@ class ApiResponse:
         if self.headers is not None:
             response_str += f"Headers: {self.headers}"
         return response_str
+    
+    def __json__(self):
+        return json.dumps(self.__dict__)
 
 
 class ApiError(DassanaException):
