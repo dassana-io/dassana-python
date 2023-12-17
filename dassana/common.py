@@ -3,7 +3,6 @@ import gzip
 import logging
 import threading
 import time
-from pathlib import Path
 from typing import Final
 
 import boto3
@@ -58,7 +57,7 @@ def patch_ingestion(job_id, metadata=None):
         metadata = {}
     json_body = {"metadata": metadata}
     res = call_api('PATCH', get_ingestion_srv_url() + "/job/" + job_id, headers=get_headers(), json=json_body,
-              is_internal=True)
+                   is_internal=True)
     return res.json()
 
 
@@ -87,8 +86,9 @@ def get_ingestion_config(ingestion_config_id, app_id):
     app_url = get_app_url()
     url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
     headers = get_headers()
-    response = call_api("GET", url, headers=headers, verify=False if app_url.endswith("svc.cluster.local:443") else True,
-                   is_internal=True)
+    response = call_api("GET", url, headers=headers,
+                        verify=False if app_url.endswith("svc.cluster.local:443") else True,
+                        is_internal=True)
     return response.json()
 
 
@@ -101,7 +101,7 @@ def get_access_token():
         "client_secret": get_client_secret(),
     }
     response = call_api("POST", url, data=data, verify=False if auth_url.endswith("svc.cluster.local:443") else True,
-                   is_internal=True)
+                        is_internal=True)
     return response.json()["access_token"]
 
 
@@ -163,7 +163,7 @@ class DassanaWriter:
         if "creationTs" in response:
             self.ingestion_metadata["creationTs"] = response["creationTs"]
         else:
-            self.ingestion_metadata["creationTs"] = int(time.time()*1000)
+            self.ingestion_metadata["creationTs"] = int(time.time() * 1000)
         job_list.add(self.job_id)
 
         if "bucket" in response['stageDetails']:
@@ -215,17 +215,22 @@ class DassanaWriter:
         custom_file.write('\n')
 
     def upload_to_cloud(self, file_name):
+        try:
+            if not self.is_internal_auth:
+                self.upload_to_signed_url()
+            elif self.storage_service == 'gcp':
+                self.upload_to_gcp(file_name)
+            elif self.storage_service == 'aws':
+                self.upload_to_aws(file_name)
+            else:
+                raise StageWriteFailure("Unsupported stage")
+        except Exception as exp:
+            raise StageWriteFailure(str(exp))
 
-        if not self.is_internal_auth:
-            self.upload_to_signed_url()
-        elif self.storage_service == 'gcp':
-            self.upload_to_gcp(file_name)
-        elif self.storage_service == 'aws':
-            self.upload_to_aws(file_name)
-        else:
-            raise StageWriteFailure("Unsupported stage")
-        Path.unlink(file_name)
-        Path.unlink(file_name + ".gz")
+        if os.path.exists(file_name):
+            os.remove(file_name)
+        if os.path.exists(file_name + ".gz"):
+            os.remove(file_name + ".gz")
 
     def upload_to_gcp(self, file_name):
         if self.client is None:
@@ -255,7 +260,6 @@ class DassanaWriter:
 
         self.client.put_object(Body=open(f"{file_name}.gz", 'rb'), Bucket=self.bucket_name,
                                Key=f"{str(self.full_file_path)}/{str(file_name)}.gz")
-        # self.client.upload_file(file_name + ".gz" , self.bucket_name, str(self.full_file_path) + "/" + str(file_name)+".gz")
 
     def upload_to_signed_url(self):
         signed_url = self.get_signing_url()
@@ -278,9 +282,8 @@ class DassanaWriter:
         metadata = {}
         fail_type_status_metadata = "canceled" if str(fail_type) == "cancel" else str(fail_type)
         self.debug_log.add(get_exc_str(str(failure_reason)))
-        job_result = {"failure_reason": failure_reason, 
-                      "status": fail_type_status_metadata,
-                      "debug_log": list(self.debug_log), 
+        job_result = {"status": fail_type_status_metadata,
+                      "debug_log": list(self.debug_log),
                       "pass": self.pass_counter, "fail": self.fail_counter,
                       "error_code": error_code,
                       "is_internal": is_internal,
@@ -295,62 +298,30 @@ class DassanaWriter:
             os.remove("service_account.json")
         str_exc = get_exc_str(str(exception_from_src))
         self.debug_log.add(str_exc)
-        if isinstance(exception_from_src, ApiError):
-            metadata = {"job_result": {"failure_reason": exception_from_src.message, 
-                                       "status": "failed",
-                                       "debug_log": list(self.debug_log), "pass": self.pass_counter,
-                                       "fail": self.fail_counter,
-                                       "error_code": exception_from_src.error_type,
-                                       "api_error": exception_from_src.to_json(),
-                                       "is_internal": exception_from_src.is_internal,
-                                       "is_auto_recoverable": exception_from_src.is_auto_recoverable}}
-            self.cancel_ingestion_job(metadata, "failed")
-        elif isinstance(exception_from_src, InternalError):
-            metadata = {"job_result": {"failure_reason": exception_from_src.message, 
-                                       "status": "canceled",
-                                       "debug_log": list(self.debug_log), "pass": self.pass_counter,
-                                       "fail": self.fail_counter,
-                                       "error_code": exception_from_src.error_type,
-                                       "is_internal": exception_from_src.is_internal,
-                                       "is_auto_recoverable": exception_from_src.is_auto_recoverable}}
-            self.cancel_ingestion_job(metadata, "cancel")
-        elif isinstance(exception_from_src, ExternalError):
-            metadata = {"job_result": {"failure_reason": exception_from_src.message,
-                                       "status": "failed",
-                                       "debug_log": list(self.debug_log), "pass": self.pass_counter,
-                                       "fail": self.fail_counter,
-                                       "error_code": exception_from_src.error_type,
-                                       "is_internal": exception_from_src.is_internal,
-                                       "is_auto_recoverable": exception_from_src.is_auto_recoverable}}
-            self.cancel_ingestion_job(metadata, "failed")
-        elif isinstance(exception_from_src, StageWriteFailure):
-            metadata = {"job_result": {"failure_reason": exception_from_src.message,
-                                       "status": "failed",
-                                       "debug_log": list(self.debug_log), "pass": self.pass_counter,
-                                       "fail": self.fail_counter,
-                                       "error_code": exception_from_src.error_type,
-                                       "is_internal": exception_from_src.is_internal,
-                                       "is_auto_recoverable": exception_from_src.is_auto_recoverable}}
-            self.cancel_ingestion_job(metadata, "failed")
-        elif isinstance(exception_from_src, DassanaException):
-            metadata = {"job_result": {"failure_reason": exception_from_src.message,
-                                       "status": "failed",
-                                       "debug_log": list(self.debug_log), "pass": self.pass_counter,
-                                       "fail": self.fail_counter,
-                                       "error_code": exception_from_src.error_type,
-                                       "is_internal": exception_from_src.is_internal,
-                                       "is_auto_recoverable": exception_from_src.is_auto_recoverable}}
-            self.cancel_ingestion_job(metadata, "failed")
-        elif isinstance(exception_from_src, Exception):
-            metadata = {"job_result": {"failure_reason": "Something went wrong",
-                                       "status": "canceled",
-                                       "debug_log": list(self.debug_log), 
-                                       "pass": self.pass_counter,
-                                       "fail": self.fail_counter,
-                                       "error_code": "internal_error",
-                                       "is_internal": True,
-                                       "is_auto_recoverable": False}}
-            self.cancel_ingestion_job(metadata, "cancel")
+        job_result_metadata = dict()
+        job_result_metadata["status"] = "failed"
+        job_result_metadata["pass"] = self.pass_counter
+        job_result_metadata["fail"] = self.fail_counter
+        job_result_metadata["debug_log"] = list(self.debug_log)
+
+        if isinstance(exception_from_src, DassanaException):
+            job_result_metadata["error_code"] = exception_from_src.error_type
+            job_result_metadata["is_internal"] = exception_from_src.is_internal
+            job_result_metadata["is_auto_recoverable"] = exception_from_src.is_auto_recoverable
+            if exception_from_src.error_type == "internal_error":
+                job_result_metadata["error_message"] = exception_from_src.message
+            if isinstance(exception_from_src, ApiError):
+                job_result_metadata["api_details"] = dict()
+                job_result_metadata["api_details"]["request"] = exception_from_src.http_request.__json__()
+                job_result_metadata["api_details"]["response"] = exception_from_src.http_response.__json__()
+        else:
+            job_result_metadata["error_code"] = "internal_error"
+            job_result_metadata["error_message"] = "Unexpected error occurred while collecting data"
+            job_result_metadata["is_internal"] = True
+            job_result_metadata["is_auto_recoverable"] = False
+
+        metadata = {"job_result": job_result_metadata}
+        self.cancel_ingestion_job(metadata, "failed")
 
     def close(self, metadata=None):
         if metadata is None:
@@ -380,7 +351,7 @@ class DassanaWriter:
             "metadata": metadata
         }
         res = call_api("POST", self.ingestion_service_url + "/job/" + self.job_id + "/" + "done", headers=get_headers(),
-                  json=json_body, is_internal=True)
+                       json=json_body, is_internal=True)
         logger.debug(f"Response Status: {res.status_code}")
         logger.debug(f"Request Body: {res.request.body}")
         logger.debug(f"Response Body: {res.text}")
@@ -399,15 +370,15 @@ class DassanaWriter:
             del json_body["priority"]
 
         res = call_api("POST", self.ingestion_service_url + "/job/", headers=get_headers(), json=json_body,
-                  is_internal=True)
+                       is_internal=True)
         return res.json()
 
     def cancel_ingestion_job(self, metadata, fail_type):
         json_body = {
             "metadata": metadata
         }
-        res = call_api("POST", self.ingestion_service_url + "/job/" + self.job_id + "/" + fail_type, headers=get_headers(),
-                  json=json_body, is_internal=True)
+        res = call_api("POST", self.ingestion_service_url + "/job/" + self.job_id + "/" + fail_type,
+                       headers=get_headers(), json=json_body, is_internal=True)
         logger.debug(f"Response Status: {res.status_code}")
         logger.debug(f"Request Body: {res.request.body}")
         logger.debug(f"Response Body: {res.text}")
@@ -415,6 +386,6 @@ class DassanaWriter:
 
     def get_signing_url(self):
         res = call_api("GET", self.ingestion_service_url + "/job/" + self.job_id + "/" + "signing-url",
-                  headers=get_headers(), is_internal=True)
+                       headers=get_headers(), is_internal=True)
         signed_url = res.json()["url"]
         return signed_url
