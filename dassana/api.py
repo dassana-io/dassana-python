@@ -50,11 +50,12 @@ def encode_params(data):
 
 
 def call_api(method, url, data=None, json=None, auth=None, headers=None, params=None, cookies=None, timeout=300,
-             verify=True, is_internal=False, ignore_not_found_error=False, new_status_validator=None) -> Response:
+             verify=True, is_internal=False, ignore_not_found_error=False, new_status_validator=None,
+             do_not_track_request_body=False) -> Response:
     api_start_ts = timeit.default_timer()
     try:
         response = api_request(method, url, data, json, auth, headers, params, cookies, timeout, verify, is_internal,
-                               ignore_not_found_error, new_status_validator)
+                               ignore_not_found_error, new_status_validator, do_not_track_request_body)
         api_end_ts = timeit.default_timer()
         logging.debug(f"API request successful (url - {url} body - {data or json})")
         return response
@@ -71,9 +72,12 @@ def call_api(method, url, data=None, json=None, auth=None, headers=None, params=
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True)
 def api_request(method, url, data=None, json=None, auth=None, headers=None, params=None, cookies=None, timeout=300,
-                verify=True, is_internal=False, ignore_not_found_error=False, new_status_validator=None) -> Response:
+                verify=True, is_internal=False, ignore_not_found_error=False, new_status_validator=None,
+                do_not_track_request_body=False) -> Response:
     global status_validator
-    http_request = ApiRequest(method, url, json_dumps(json) if json is not None else encode_params(data))
+    http_request = ApiRequest(method, url,
+                              (json_dumps(json) if json is not None else encode_params(data))
+                              if not do_not_track_request_body else None)
     try:
         response = requests.request(method, url, headers=headers, data=data, json=json, params=params, auth=auth,
                                     timeout=timeout, cookies=cookies, verify=verify)

@@ -312,8 +312,8 @@ class DassanaWriter:
                 job_result_metadata["error_message"] = exception_from_src.message
             if isinstance(exception_from_src, ApiError):
                 job_result_metadata["api_details"] = dict()
-                job_result_metadata["api_details"]["request"] = exception_from_src.http_request.__json__()
-                job_result_metadata["api_details"]["response"] = exception_from_src.http_response.__json__()
+                job_result_metadata["api_details"]["request"] = exception_from_src.http_request.__dict__
+                job_result_metadata["api_details"]["response"] = exception_from_src.http_response.__dict__
         else:
             job_result_metadata["error_code"] = "internal_error"
             job_result_metadata["error_message"] = "Unexpected error occurred while collecting data"

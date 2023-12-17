@@ -43,7 +43,7 @@ class ApiRequest:
             request_str += f"Body: {self.body} "
         return request_str
 
-    def __json__(self):
+    def to_json(self):
         return json.dumps(self.__dict__)
 
 
@@ -96,7 +96,7 @@ class ApiError(DassanaException):
         self.is_auto_recoverable = is_auto_recoverable
 
     def __str__(self):
-        error_str = f"[{self.error_type}] {self.message} : API Request failed - {self.http_request} "
+        error_str = f"[{self.error_type}] : API Request failed - {self.http_request} "
         if self.http_response is not None:
             error_str += f"Response - {self.http_response} "
         if self.error_details is not None:
