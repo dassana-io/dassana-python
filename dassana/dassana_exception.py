@@ -17,6 +17,7 @@ class DassanaException(Exception):
         error_msg = f"[{self.error_type}] {self.message}"
         if self.error_details is not None:
             error_msg += f" : {self.error_details}"
+        return error_msg
 
     def to_json(self):
         return json.dumps(self.__dict__)
