@@ -91,6 +91,14 @@ def get_ingestion_config(ingestion_config_id, app_id):
                         is_internal=True)
     return response.json()
 
+def patch_ingestion_config(ingestion_config_id, app_id, payload):
+    app_url = get_app_url()
+    url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
+    headers = get_headers()
+    response = call_api("PATCH", url=url, headers=headers, json=payload,
+                        verify=False if app_url.endswith("svc.cluster.local:443") else True,
+                        is_internal=True)
+    return response.text
 
 def get_access_token():
     auth_url = get_auth_url()
