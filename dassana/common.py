@@ -7,10 +7,11 @@ from typing import Final, Callable
 
 import boto3
 import requests
-
 from google.cloud import storage
+
 from google.cloud import pubsub_v1
 from concurrent import futures
+
 
 from .api import call_api
 from .dassana_env import *
@@ -22,6 +23,8 @@ logging.basicConfig(level=logging.INFO)
 job_list = set()
 
 dassana_partner = get_partner()
+dassana_partner_client_id = get_partner_client_id()
+dassana_partner_tenant_id = get_partner_tenant_id()
 project_id = get_project_id()
 publisher = pubsub_v1.PublisherClient()
 
@@ -226,6 +229,9 @@ class DassanaWriter:
         if dassana_partner:
             if customer_status:
                 state_message["status"] = customer_status
+            if dassana_partner_client_id and dassana_partner_tenant_id:
+                state_message["siteId"] = dassana_partner_client_id
+                state_message["partnerTenantId"] = dassana_partner_tenant_id
             project_id = get_project_id()
             log_event_topic_name = dassana_partner + "_log_event_topic"
             publish_message(state_message, project_id, log_event_topic_name)
@@ -435,7 +441,6 @@ class DassanaWriter:
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
         self.update_ingestion_to_done(metadata)
-        self.report_state(metadata["job_result"])
 
     def update_ingestion_to_done(self, metadata):
         json_body = {
