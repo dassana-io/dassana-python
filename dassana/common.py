@@ -3,11 +3,14 @@ import gzip
 import logging
 import threading
 import time
-from typing import Final
+from typing import Final, Callable
 
 import boto3
 import requests
+
 from google.cloud import storage
+from google.cloud import pubsub_v1
+from concurrent import futures
 
 from .api import call_api
 from .dassana_env import *
@@ -18,6 +21,9 @@ logging.basicConfig(level=logging.INFO)
 
 job_list = set()
 
+dassana_partner = get_partner()
+project_id = get_project_id()
+publisher = pubsub_v1.PublisherClient()
 
 def datetime_handler(val):
     if isinstance(val, datetime.datetime):
@@ -112,6 +118,28 @@ def get_access_token():
                         is_internal=True)
     return response.json()["access_token"]
 
+def get_callback(
+    publish_future: pubsub_v1.publisher.futures.Future, data: str
+) -> Callable[[pubsub_v1.publisher.futures.Future], None]:
+    def callback(publish_future: pubsub_v1.publisher.futures.Future) -> None:
+        logger.info(f"Published Message with messageId: {publish_future.result(timeout=60)}")
+
+    return callback
+
+def publish_message(message, project_id, topic_name):
+    try:
+        publish_futures = []
+        topic_path = publisher.topic_path(project_id, topic_name)
+        data = json.dumps(message)
+        # When you publish a message, the client returns a future.
+        publish_future = publisher.publish(topic_path, data.encode("utf-8"))
+        # Non-blocking. Publish failures are handled in the callback function.
+        publish_future.add_done_callback(get_callback(publish_future, data))
+        publish_futures.append(publish_future)
+        futures.wait(publish_futures, return_when=futures.ALL_COMPLETED)
+
+    except Exception as e:
+        logger.error(f"Failed To Publish Message Because of {e}")
 
 class DassanaWriter:
     def __init__(self, source, record_type, config_id, metadata=None, priority=None, is_snapshot=False,
@@ -147,7 +175,60 @@ class DassanaWriter:
         self.ingestion_metadata = None
         self.custom_file_dict = dict()
         self.initialize_client()
+        self.report_state()
         self.file = open(self.file_path, 'a')
+
+    def report_state(self, status=None):
+        scope_id_mapping = {
+            "crowdstrike_edr": "detection",
+            "crowdstrike_spotlight": "vulnerability",
+            "tenable_vulnerability": "vulnerability",
+            "snyk_vulnerability": "vulnerability",
+            "prisma_cloud_cspm": "cspm",
+            "prisma_cloud_cwpp": "vulnerability",
+            "prisma_cloud_security_group": "asset",
+            "prisma_cloud_instance": "asset",
+            "carbon_black_vulnerability": "vulnerability",
+            "ms_defender_endpoint_alert": "alert",
+            "ms_defender_endpoint_vulnerability": "vulnerability"
+        }
+
+        customer_status = None
+
+        if not status:
+            message = "starting data collection"
+        else:
+            if status == "ready_for_loading":
+                customer_status = "succeeded"
+                message = "successfully finished data collection"      
+            else:
+                message = "failed to finish data collection"
+
+        now = datetime.datetime.utcnow().isoformat()
+        scope_id = self.ingestion_metadata["scope"]["scopeId"]
+        state_message = {
+            "message": message, 
+            "timestamp": now,
+            "tenantId": get_tenant_id(),
+            "source": self.source,
+            "configId": self.config_id,
+            "scopeId": scope_id_mapping.get(scope_id, scope_id)
+        }
+
+        if status:
+            state_message["status"] = status
+
+        if not status or status == 'ready_for_loading':
+            logger.info(state_message)
+        else:
+            logger.error(state_message)
+
+        if dassana_partner:
+            if customer_status:
+                state_message["status"] = customer_status
+            project_id = get_project_id()
+            log_event_topic_name = dassana_partner + "_log_event_topic"
+            publish_message(state_message, project_id, log_event_topic_name)
 
     def get_file_path(self):
         epoch_ts = int(time.time())
@@ -330,6 +411,7 @@ class DassanaWriter:
 
         metadata = {"job_result": job_result_metadata}
         self.cancel_ingestion_job(metadata, "failed")
+        self.report_state(job_result_metadata["error_code"])
 
     def close(self, metadata=None):
         if metadata is None:
@@ -353,6 +435,7 @@ class DassanaWriter:
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
         self.update_ingestion_to_done(metadata)
+        self.report_state(metadata["job_result"])
 
     def update_ingestion_to_done(self, metadata):
         json_body = {
