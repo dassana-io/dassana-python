@@ -15,6 +15,7 @@ from concurrent import futures
 
 from .api import call_api
 from .dassana_env import *
+from .dassana_logging import *
 from .dassana_exception import *
 
 logger: Final = logging.getLogger(__name__)
@@ -178,63 +179,8 @@ class DassanaWriter:
         self.ingestion_metadata = None
         self.custom_file_dict = dict()
         self.initialize_client()
-        self.report_state()
+        log(self.source, 'in_progress', scope_id=self.metadata["scope"]["scopeId"], config_id=self.config_id)
         self.file = open(self.file_path, 'a')
-
-    def report_state(self, status=None):
-        scope_id_mapping = {
-            "crowdstrike_edr": "detection",
-            "crowdstrike_spotlight": "vulnerability",
-            "tenable_vulnerability": "vulnerability",
-            "snyk_vulnerability": "vulnerability",
-            "prisma_cloud_cspm": "cspm",
-            "prisma_cloud_cwpp": "vulnerability",
-            "prisma_cloud_security_group": "asset",
-            "prisma_cloud_instance": "asset",
-            "carbon_black_vulnerability": "vulnerability",
-            "ms_defender_endpoint_alert": "alert",
-            "ms_defender_endpoint_vulnerability": "vulnerability"
-        }
-
-        customer_status = None
-
-        if not status:
-            message = "starting data collection"
-        else:
-            if status == "ready_for_loading":
-                customer_status = "succeeded"
-                message = "successfully finished data collection"      
-            else:
-                message = "failed to finish data collection"
-
-        now = datetime.datetime.utcnow().isoformat()
-        scope_id = self.ingestion_metadata["scope"]["scopeId"]
-        state_message = {
-            "message": message, 
-            "timestamp": now,
-            "tenantId": get_tenant_id(),
-            "source": self.source,
-            "configId": self.config_id,
-            "scopeId": scope_id_mapping.get(scope_id, scope_id)
-        }
-
-        if status:
-            state_message["status"] = status
-
-        if not status or status == 'ready_for_loading':
-            logger.info(state_message)
-        else:
-            logger.error(state_message)
-
-        if dassana_partner:
-            if customer_status:
-                state_message["status"] = customer_status
-            if dassana_partner_client_id and dassana_partner_tenant_id:
-                state_message["siteId"] = dassana_partner_client_id
-                state_message["partnerTenantId"] = dassana_partner_tenant_id
-            project_id = get_project_id()
-            log_event_topic_name = dassana_partner + "_log_event_topic"
-            publish_message(state_message, project_id, log_event_topic_name)
 
     def get_file_path(self):
         epoch_ts = int(time.time())
@@ -417,7 +363,7 @@ class DassanaWriter:
 
         metadata = {"job_result": job_result_metadata}
         self.cancel_ingestion_job(metadata, "failed")
-        self.report_state(job_result_metadata["error_code"])
+        log(self.source, 'failed', exception_from_src, scope_id=self.metadata["scope"]["scopeId"], config_id=self.config_id, metadata=job_result_metadata)
 
     def close(self, metadata=None):
         if metadata is None:
@@ -441,6 +387,7 @@ class DassanaWriter:
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
         self.update_ingestion_to_done(metadata)
+        log(self.source, 'ready_for_loading', scope_id=self.metadata["scope"]["scopeId"], config_id=self.config_id, metadata=job_result)
 
     def update_ingestion_to_done(self, metadata):
         json_body = {

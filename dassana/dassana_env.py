@@ -74,7 +74,6 @@ def get_project_id():
         raise KeyError(
             "GCP_PROJECT_ID environment variable is not set. Review your configuration."
         )
-    print(os.getenv("GCP_PROJECT_ID"))
     return str(os.getenv("GCP_PROJECT_ID"))
 
 def get_partner():
