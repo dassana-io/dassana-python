@@ -23,9 +23,6 @@ logging.basicConfig(level=logging.INFO)
 
 job_list = set()
 
-dassana_partner = get_partner()
-dassana_partner_client_id = get_partner_client_id()
-dassana_partner_tenant_id = get_partner_tenant_id()
 project_id = get_project_id()
 publisher = pubsub_v1.PublisherClient()
 
