@@ -1,5 +1,6 @@
 import datetime
 import gzip
+import pycurl
 import logging
 import threading
 import time
@@ -30,6 +31,26 @@ def compress_file(file_name):
         with gzip.open(f"{file_name}.gz", 'wb') as file_out:
             file_out.writelines(file_in)
     logger.info("Compressed file completed")
+
+
+def delete_file(file_name):
+    os.remove(file_name)     
+
+
+def download_and_save_file(url, file_name):
+    with open(file_name, 'wb') as f:
+        c = pycurl.Curl()
+        c.setopt(c.URL, url)
+        c.setopt(c.WRITEDATA, f)
+        c.perform()
+        c.close()
+
+
+def save_data_to_file(data_list, file_name):
+    with gzip.open(file_name, "at") as f:
+        for item in data_list:
+            json_string = json.dumps(item)
+            f.write(json_string + "\n")
 
 
 def get_headers():
