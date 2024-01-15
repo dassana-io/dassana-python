@@ -119,8 +119,9 @@ def build_state(source, scope_id, config_id, locals, status=None, exception=None
     state["status"] = status
 
     if status == "failed":
-        if locals.get("selected_scope_ids") == None:
-            state["message"] = "failed to run data collection for all scopes"
+        if locals.get("selected_scope_ids") and len(locals.get("selected_scope_ids")) > 0:
+            scope_id_str = ','.join(locals.get("selected_scope_ids"))
+            state["message"] = f"failed to run data collection for {scope_id_str}"
         else:
             state["message"] = "failed to finish data collection"
 
