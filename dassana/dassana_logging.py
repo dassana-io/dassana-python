@@ -145,8 +145,6 @@ def build_state(source, scope_id, config_id, locals, status=None, exception=None
             for scope_id in scope_ids:
                 if exception and locals.get(f'{scope_id}_writer'):
                     continue
-                state["eventId"] = str(uuid4())
-                state["timestamp"] = datetime.datetime.utcnow().isoformat()
                 state["scopeId"] = scope_id_mapping.get(scope_id, scope_id)
                 results.append(state)
             return results
