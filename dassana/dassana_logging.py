@@ -1,11 +1,12 @@
 import datetime
 from uuid import uuid4
+
 from dassana import common
 from .dassana_env import *
+
 from typing import Final
 import logging
 from google.cloud import pubsub_v1
-from concurrent import futures
 import dassana.dassana_exception as exc
 
 
@@ -15,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 dassana_partner = get_partner()
 dassana_partner_client_id = get_partner_client_id()
 dassana_partner_tenant_id = get_partner_tenant_id()
-project_id = get_project_id()
+project_id = get_project_id
 publisher = pubsub_v1.PublisherClient()
 event_topic_name = None
 
@@ -120,10 +121,13 @@ def build_state(source, scope_id, config_id, locals, job_id, status=None, except
     state["eventId"] = str(uuid4())
     state["timestamp"] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%3fZ")
     state["connector"] = source
-    if not status:
+    if exception and not status:
+        state["status"] = "failed"
+    if not exception and not status:
         state["status"] = "in_progress"
     else:
         state["status"] = status
+        
     state["level"] = "info" if status in ['ready_for_loading', 'in_progress'] else "error"
 
     if job_id:
