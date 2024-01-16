@@ -98,7 +98,7 @@ def add_developer_context(metadata, status ,exception):
   
 def add_customer_context(state, exception=None):
 
-    state["status"] = "successful" if state.get("status") == "ready_for_loading" else state.get("status")
+    state["status"] = "ok" if state.get("status") == "ready_for_loading" else state.get("status")
     state["tenantId"] = dassana_partner_tenant_id
     state["siteId"] = dassana_partner_client_id
 
