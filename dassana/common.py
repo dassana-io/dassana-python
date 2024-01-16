@@ -140,7 +140,7 @@ def publish_message(message, project_id, topic_name):
         futures.wait(publish_futures, return_when=futures.ALL_COMPLETED)
 
     except Exception as e:
-        logger.error(f"Failed To Publish Message Because of {e}")
+        logger.error(f"Failed To Publish Message In Topic {topic_name} Because of {e}")
 
 class DassanaWriter:
     def __init__(self, source, record_type, config_id, metadata=None, priority=None, is_snapshot=False,
