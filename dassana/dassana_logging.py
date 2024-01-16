@@ -20,7 +20,7 @@ publisher = pubsub_v1.PublisherClient()
 event_topic_name = None
 
 if dassana_partner:
-    # event_topic_name = dassana_partner + "_LOG_EVENT_TOPIC_NAME"
+    event_topic_name = dassana_partner + "_LOG_EVENT_TOPIC_NAME"
 
 scope_id_mapping = {
     "crowdstrike_edr": "detection",
