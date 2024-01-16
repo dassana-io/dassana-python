@@ -176,7 +176,7 @@ class DassanaWriter:
         self.ingestion_metadata = None
         self.custom_file_dict = dict()
         self.initialize_client()
-        log(self.source, 'in_progress', scope_id=self.metadata["scope"]["scopeId"], config_id=self.config_id)
+        log(self.source, scope_id=self.metadata["scope"]["scopeId"], config_id=self.config_id)
         self.file = open(self.file_path, 'a')
 
     def get_file_path(self):
@@ -360,7 +360,7 @@ class DassanaWriter:
 
         metadata = {"job_result": job_result_metadata}
         self.cancel_ingestion_job(metadata, "failed")
-        log(self.source, 'failed', exception_from_src, scope_id=self.metadata["scope"]["scopeId"], config_id=self.config_id, metadata=job_result_metadata)
+        log(self.source, job_result_metadata["status"], exception_from_src, scope_id=self.metadata["scope"]["scopeId"], config_id=self.config_id, metadata=job_result_metadata)
 
     def close(self, metadata=None):
         if metadata is None:
@@ -384,7 +384,7 @@ class DassanaWriter:
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
         self.update_ingestion_to_done(metadata)
-        log(self.source, 'ready_for_loading', scope_id=self.metadata["scope"]["scopeId"], config_id=self.config_id, metadata=job_result)
+        log(self.source, job_result["status"], scope_id=self.metadata["scope"]["scopeId"], config_id=self.config_id, metadata=job_result)
 
     def update_ingestion_to_done(self, metadata):
         json_body = {
@@ -422,6 +422,7 @@ class DassanaWriter:
         logger.debug(f"Response Status: {res.status_code}")
         logger.debug(f"Request Body: {res.request.body}")
         logger.debug(f"Response Body: {res.text}")
+        log(self.source, fail_type, scope_id=self.metadata["scope"]["scopeId"], config_id=self.config_id)
         return res.json()
 
     def get_signing_url(self):
