@@ -8,23 +8,19 @@ from typing import Final, Callable
 import boto3
 import requests
 from google.cloud import storage
-
 from google.cloud import pubsub_v1
 from concurrent import futures
 
-
 from .api import call_api
 from .dassana_env import *
-from .dassana_logging import *
 from .dassana_exception import *
+from .dassana_logging import log
 
 logger: Final = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 job_list = set()
 
-project_id = get_project_id()
-publisher = pubsub_v1.PublisherClient()
 
 def datetime_handler(val):
     if isinstance(val, datetime.datetime):
@@ -96,7 +92,17 @@ def get_ingestion_config(ingestion_config_id, app_id):
     response = call_api("GET", url, headers=headers,
                         verify=False if app_url.endswith("svc.cluster.local:443") else True,
                         is_internal=True)
-    return response.json()
+    
+    try:
+        response = response.json()
+        if not response.get("config"):
+            raise KeyError("config  missing in the response.")
+        else:
+            if not response["config"].get("_selectedScopeIds"):
+                raise KeyError("_selectedScopeIds are missing in the response.")            
+        return response
+    except:
+        raise KeyError()
 
 def patch_ingestion_config(ingestion_config_id, app_id, payload):
     app_url = get_app_url()
@@ -127,8 +133,10 @@ def get_callback(
 
     return callback
 
-def publish_message(message, project_id, topic_name):
+def publish_message(message, topic_name):
     try:
+        project_id = get_project_id()
+        publisher = pubsub_v1.PublisherClient()
         publish_futures = []
         topic_path = publisher.topic_path(project_id, topic_name)
         data = json.dumps(message)
@@ -140,7 +148,7 @@ def publish_message(message, project_id, topic_name):
         futures.wait(publish_futures, return_when=futures.ALL_COMPLETED)
 
     except Exception as e:
-        logger.error(f"Failed To Publish Message In Topic {topic_name} Because of {e}")
+        logger.error(f"Failed To Publish Message to topic {topic_name} Because of {e}")
 
 class DassanaWriter:
     def __init__(self, source, record_type, config_id, metadata=None, priority=None, is_snapshot=False,
@@ -176,7 +184,7 @@ class DassanaWriter:
         self.ingestion_metadata = None
         self.custom_file_dict = dict()
         self.initialize_client()
-        log(self.source, scope_id=self.metadata["scope"]["scopeId"], config_id=self.config_id)
+        log(self.source, scope_id=self.metadata["scope"]["scopeId"], job_id=self.job_id)
         self.file = open(self.file_path, 'a')
 
     def get_file_path(self):
@@ -359,8 +367,8 @@ class DassanaWriter:
             job_result_metadata["is_auto_recoverable"] = False
 
         metadata = {"job_result": job_result_metadata}
-        self.cancel_ingestion_job(metadata, "failed")
-        log(self.source, job_result_metadata["status"], exception_from_src, scope_id=self.metadata["scope"]["scopeId"], config_id=self.config_id, metadata=job_result_metadata)
+        self.cancel_ingestion_job(metadata, "failed")   
+        log(self.source, job_result_metadata["status"], exception_from_src, scope_id=self.metadata["scope"]["scopeId"], metadata=job_result_metadata, job_id=self.job_id)
 
     def close(self, metadata=None):
         if metadata is None:
@@ -384,7 +392,7 @@ class DassanaWriter:
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
         self.update_ingestion_to_done(metadata)
-        log(self.source, job_result["status"], scope_id=self.metadata["scope"]["scopeId"], config_id=self.config_id, metadata=job_result)
+        log(self.source, job_result["status"], scope_id=self.metadata["scope"]["scopeId"],  metadata=job_result,job_id=self.job_id)
 
     def update_ingestion_to_done(self, metadata):
         json_body = {
@@ -422,7 +430,7 @@ class DassanaWriter:
         logger.debug(f"Response Status: {res.status_code}")
         logger.debug(f"Request Body: {res.request.body}")
         logger.debug(f"Response Body: {res.text}")
-        log(self.source, fail_type, scope_id=self.metadata["scope"]["scopeId"], config_id=self.config_id)
+        log(self.source, fail_type, scope_id=self.metadata["scope"]["scopeId"])
         return res.json()
 
     def get_signing_url(self):
