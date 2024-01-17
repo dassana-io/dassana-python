@@ -3,13 +3,11 @@ import gzip
 import logging
 import threading
 import time
-from typing import Final, Callable
+from typing import Final
 
 import boto3
 import requests
 from google.cloud import storage
-from google.cloud import pubsub_v1
-from concurrent import futures
 
 from .api import call_api
 from .dassana_env import *
@@ -124,31 +122,6 @@ def get_access_token():
     response = call_api("POST", url, data=data, verify=False if auth_url.endswith("svc.cluster.local:443") else True,
                         is_internal=True)
     return response.json()["access_token"]
-
-def get_callback(
-    publish_future: pubsub_v1.publisher.futures.Future, data: str
-) -> Callable[[pubsub_v1.publisher.futures.Future], None]:
-    def callback(publish_future: pubsub_v1.publisher.futures.Future) -> None:
-        pass
-
-    return callback
-
-def publish_message(message, topic_name):
-    try:
-        project_id = get_project_id()
-        publisher = pubsub_v1.PublisherClient()
-        publish_futures = []
-        topic_path = publisher.topic_path(project_id, topic_name)
-        data = json.dumps(message)
-        # When you publish a message, the client returns a future.
-        publish_future = publisher.publish(topic_path, data.encode("utf-8"))
-        # Non-blocking. Publish failures are handled in the callback function.
-        publish_future.add_done_callback(get_callback(publish_future, data))
-        publish_futures.append(publish_future)
-        futures.wait(publish_futures, return_when=futures.ALL_COMPLETED)
-
-    except Exception as e:
-        logger.error(f"Failed To Publish Message to topic {topic_name} Because of {e}")
 
 class DassanaWriter:
     def __init__(self, source, record_type, config_id, metadata=None, priority=None, is_snapshot=False,
