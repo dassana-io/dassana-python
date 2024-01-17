@@ -16,6 +16,7 @@ dassana_partner = get_partner()
 dassana_partner_client_id = get_partner_client_id()
 dassana_partner_tenant_id = get_partner_tenant_id()
 config_id = get_ingestion_config_id()
+app_id = get_app_id()
 
 topic_name = None
 if dassana_partner:
@@ -38,8 +39,8 @@ scope_id_mapping = {
     "ms_defender_endpoint_vulnerability": "vulnerability"
 }
 
-def log(source, status=None, exception=None, locals={}, scope_id=None, metadata={}, job_id=None):
-    state = build_state(source, scope_id, locals, job_id, status, exception)
+def log(status=None, exception=None, locals={}, scope_id=None, metadata={}, job_id=None):
+    state = build_state(scope_id, locals, job_id, status, exception)
     message = {}
 
     message["developerCtx"] = {}
@@ -77,7 +78,7 @@ def add_developer_context(metadata, status ,exception):
             state["errorDetails"]["fail"] = metadata["fail"]
             state["errorDetails"]["debugLog"] = metadata["debug_log"]
 
-        elif exception:
+        if exception:
             if isinstance(exception, exc.DassanaException):
                 state["errorDetails"]["errorCode"] = exception.error_type
                 state["errorDetails"]["isInternal"] = exception.is_internal
@@ -141,12 +142,12 @@ def add_customer_context(state, exception=None):
         state["errorDetails"]["message"] = "Job terminated due to internal error"
     return state
 
-def build_state(source, scope_id, locals, job_id, status, exception):
+def build_state(scope_id, locals, job_id, status, exception):
     state = {}
 
     state["eventId"] = str(uuid4())
     state["timestamp"] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
-    state["connector"] = source
+    state["connector"] = app_id
     if exception:
         state["status"] = "failed"
     elif not exception and not status:
