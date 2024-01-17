@@ -15,19 +15,11 @@ logging.basicConfig(level=logging.INFO)
 dassana_partner = get_partner()
 dassana_partner_client_id = get_partner_client_id()
 dassana_partner_tenant_id = get_partner_tenant_id()
-connection_id = get_ingestion_config_id()
 config_id = get_ingestion_config_id()
-is_logging_enabled = get_logging_enbled()
 
 topic_name = None
 if dassana_partner:
-    topic_name = dassana_partner + "_LOG_EVENT_TOPIC_NAME"
-
-connection_id = None
-try:
-    connection_id = get_ingestion_config_id()
-except:
-    connection_id = None
+    topic_name = dassana_partner + "_log_event_topic"
 
 scope_id_mapping = {
     "crowdstrike_edr": "detection",
@@ -47,28 +39,26 @@ scope_id_mapping = {
 }
 
 def log(source, status=None, exception=None, locals={}, scope_id=None, metadata={}, job_id=None):
-    if is_logging_enabled:
-        state = build_state(source, scope_id, locals, job_id, status, exception)
-        message = {}
+    state = build_state(source, scope_id, locals, job_id, status, exception)
+    message = {}
 
-        message["developerCtx"] = {}
-        message["developerCtx"].update(state)
-        message["developerCtx"].update(add_developer_context(metadata, state["status"], exception))
+    message["developerCtx"] = {}
+    message["developerCtx"].update(state)
+    message["developerCtx"].update(add_developer_context(metadata, state["status"], exception))
 
-        message["customerCtx"] = {}
-        message["customerCtx"].update(state)
-        message["customerCtx"].update(add_customer_context(message["customerCtx"], exception))
+    message["customerCtx"] = {}
+    message["customerCtx"].update(state)
+    message["customerCtx"].update(add_customer_context(message["customerCtx"], exception))
 
-        if state["status"] == "failed":
-            logger.error(msg=message["developerCtx"])
-        else:
-            logger.info(msg=message["developerCtx"])
-        
-        message = message["customerCtx"]
-        
-        if dassana_partner:
-            topic_name = dassana_partner+"_LOG_EVENT_TOPIC_NAME"
-            publish_message(message, topic_name)
+    if state["status"] == "failed":
+        logger.error(msg=message["developerCtx"])
+    else:
+        logger.info(msg=message["developerCtx"])
+    
+    message = message["customerCtx"]
+    
+    if dassana_partner:
+        publish_message(message, topic_name)
 
 def add_developer_context(metadata, status ,exception):
     state = {}
@@ -95,13 +85,27 @@ def add_developer_context(metadata, status ,exception):
                     state["errorDetails"]["httpRequest"] = exception.http_request.__dict__
                     state["errorDetails"]["httpResonse"] = exception.http_response.__dict__ 
                 return state
+        
+        if "error_code" in metadata:
+            state["errorDetails"]["errorCode"] = metadata["error_code"]
+        else:
+            state["errorDetails"]["errorCode"] = "internal_error"
+
+        if "is_internal" in metadata:
+            state["errorDetails"]["isInternal"] = metadata["is_internal"]
+        else:
+            state["errorDetails"]["isInternal"] = True
+        
+        if "is_auto_recoverable" in metadata:
+            state["errorDetails"]["isAutoRecoverable"] = metadata["is_auto_recoverable"]
+        else:
+            state["errorDetails"]["isAutoRecoverable"] = False
+
         state["errorDetails"]["errorMessage"] = "Unexpected error occurred while collecting data"
-        state["errorDetails"]["errorCode"] = "internal_error"
-        state["errorDetails"]["isInternal"] = True
-        state["errorDetails"]["isAutoRecoverable"] = False
     return state
   
 def add_customer_context(state, exception=None):
+
 
     state["status"] = "ok" if state.get("status") == "ready_for_loading" else state.get("status")
     if dassana_partner and dassana_partner_tenant_id:
@@ -156,7 +160,7 @@ def build_state(source, scope_id, locals, job_id, status, exception):
     if 'config_id' in locals:
         state["connectionId"] = locals.get("config_id")
     else:
-        state["connectionId"] = connection_id
+        state["connectionId"] = config_id
         
     if scope_id:
         state["scopeId"] = scope_id_mapping.get(scope_id, scope_id)

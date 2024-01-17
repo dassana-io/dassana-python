@@ -102,7 +102,7 @@ def get_ingestion_config(ingestion_config_id, app_id):
                 raise KeyError("_selectedScopeIds are missing in the response.")            
         return response
     except:
-        raise KeyError()
+        raise
 
 def patch_ingestion_config(ingestion_config_id, app_id, payload):
     app_url = get_app_url()
@@ -129,7 +129,7 @@ def get_callback(
     publish_future: pubsub_v1.publisher.futures.Future, data: str
 ) -> Callable[[pubsub_v1.publisher.futures.Future], None]:
     def callback(publish_future: pubsub_v1.publisher.futures.Future) -> None:
-        logger.info(f"Published Message with messageId: {publish_future.result(timeout=60)}")
+        pass
 
     return callback
 
@@ -336,6 +336,7 @@ class DassanaWriter:
                       "is_auto_recoverable": is_auto_recoverable}
         metadata["job_result"] = job_result
         self.cancel_ingestion_job(metadata, fail_type)
+        log(self.source, status=fail_type, scope_id=self.metadata["scope"]["scopeId"], metadata=job_result)
 
     def cancel_job(self, exception_from_src):
         global job_list
@@ -367,7 +368,8 @@ class DassanaWriter:
             job_result_metadata["is_auto_recoverable"] = False
 
         metadata = {"job_result": job_result_metadata}
-        self.cancel_ingestion_job(metadata, "failed", exception_from_src)   
+        log(self.source, scope_id=self.metadata["scope"]["scopeId"], exception=exception_from_src)
+        self.cancel_ingestion_job(metadata, "failed")   
 
     def close(self, metadata=None):
         if metadata is None:
@@ -420,7 +422,7 @@ class DassanaWriter:
                        is_internal=True)
         return res.json()
 
-    def cancel_ingestion_job(self, metadata, fail_type, exception_from_src=None):
+    def cancel_ingestion_job(self, metadata, fail_type):
         json_body = {
             "metadata": metadata
         }
@@ -429,7 +431,6 @@ class DassanaWriter:
         logger.debug(f"Response Status: {res.status_code}")
         logger.debug(f"Request Body: {res.request.body}")
         logger.debug(f"Response Body: {res.text}")
-        log(self.source, fail_type, scope_id=self.metadata["scope"]["scopeId"], exception=exception_from_src)
         return res.json()
 
     def get_signing_url(self):

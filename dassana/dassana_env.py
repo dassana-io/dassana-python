@@ -90,8 +90,3 @@ def get_partner_tenant_id():
     if "DASSANA_PARTNER_TENANT_ID" not in os.environ:
         return None
     return str(os.environ["DASSANA_PARTNER_TENANT_ID"])
-    
-def get_logging_enbled():
-    if "DASSANA_LOGGING_ENABLED" not in os.environ:
-        return False
-    return bool(os.environ["DASSANA_LOGGING_ENABLED"])
