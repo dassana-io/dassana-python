@@ -157,7 +157,7 @@ class DassanaWriter:
         self.ingestion_metadata = None
         self.custom_file_dict = dict()
         self.initialize_client()
-        log(self.source, scope_id=self.metadata["scope"]["scopeId"], job_id=self.job_id)
+        log(scope_id=self.metadata["scope"]["scopeId"], job_id=self.job_id)
         self.file = open(self.file_path, 'a')
 
     def get_file_path(self):
@@ -313,7 +313,7 @@ class DassanaWriter:
                       "is_auto_recoverable": is_auto_recoverable}
         metadata["job_result"] = job_result
         self.cancel_ingestion_job(metadata, fail_type)
-        log(self.source, status=fail_type, scope_id=self.metadata["scope"]["scopeId"], metadata=job_result)
+        log(status=fail_type, scope_id=self.metadata["scope"]["scopeId"], metadata=job_result)
 
     def cancel_job(self, exception_from_src):
         global job_list
@@ -346,7 +346,7 @@ class DassanaWriter:
 
         metadata = {"job_result": job_result_metadata}
         self.cancel_ingestion_job(metadata, "failed") 
-        log(self.source, scope_id=self.metadata["scope"]["scopeId"], exception=exception_from_src, metadata=job_result_metadata)
+        log(scope_id=self.metadata["scope"]["scopeId"], exception=exception_from_src, metadata=job_result_metadata)
 
     def close(self, metadata=None):
         if metadata is None:
@@ -370,7 +370,7 @@ class DassanaWriter:
         if os.path.exists("service_account.json"):
             os.remove("service_account.json")
         self.update_ingestion_to_done(metadata)
-        log(self.source, job_result["status"], scope_id=self.metadata["scope"]["scopeId"],  metadata=job_result,job_id=self.job_id)
+        log(status=job_result["status"], scope_id=self.metadata["scope"]["scopeId"],  metadata=job_result,job_id=self.job_id)
 
     def update_ingestion_to_done(self, metadata):
         json_body = {
