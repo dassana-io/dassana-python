@@ -68,3 +68,25 @@ def is_internal_auth():
     except KeyError:
         return True
     return False
+
+def get_project_id():
+    if "GCP_PROJECT_ID" not in os.environ:
+        raise KeyError(
+            "GCP_PROJECT_ID environment variable is not set. Review your configuration."
+        )
+    return str(os.getenv("GCP_PROJECT_ID"))
+
+def get_partner():
+    if "DASSANA_PARTNER" not in os.environ:
+        return None
+    return str(os.environ["DASSANA_PARTNER"])
+
+def get_partner_client_id():
+    if "DASSANA_PARTNER_CLIENT_ID" not in os.environ:
+        return None
+    return str(os.environ["DASSANA_PARTNER_CLIENT_ID"])
+
+def get_partner_tenant_id():
+    if "DASSANA_PARTNER_TENANT_ID" not in os.environ:
+        return None
+    return str(os.environ["DASSANA_PARTNER_TENANT_ID"])
