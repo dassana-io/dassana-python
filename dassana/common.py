@@ -367,8 +367,7 @@ class DassanaWriter:
             job_result_metadata["is_auto_recoverable"] = False
 
         metadata = {"job_result": job_result_metadata}
-        self.cancel_ingestion_job(metadata, "failed")   
-        log(self.source, job_result_metadata["status"], exception_from_src, scope_id=self.metadata["scope"]["scopeId"], metadata=job_result_metadata, job_id=self.job_id)
+        self.cancel_ingestion_job(metadata, "failed", exception_from_src)   
 
     def close(self, metadata=None):
         if metadata is None:
@@ -421,7 +420,7 @@ class DassanaWriter:
                        is_internal=True)
         return res.json()
 
-    def cancel_ingestion_job(self, metadata, fail_type):
+    def cancel_ingestion_job(self, metadata, fail_type, exception_from_src=None):
         json_body = {
             "metadata": metadata
         }
@@ -430,7 +429,7 @@ class DassanaWriter:
         logger.debug(f"Response Status: {res.status_code}")
         logger.debug(f"Request Body: {res.request.body}")
         logger.debug(f"Response Body: {res.text}")
-        log(self.source, fail_type, scope_id=self.metadata["scope"]["scopeId"])
+        log(self.source, fail_type, scope_id=self.metadata["scope"]["scopeId"], exception=exception_from_src)
         return res.json()
 
     def get_signing_url(self):

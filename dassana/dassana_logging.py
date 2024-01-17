@@ -19,6 +19,15 @@ connection_id = get_ingestion_config_id()
 config_id = get_ingestion_config_id()
 is_logging_enabled = get_logging_enbled()
 
+topic_name = None
+if dassana_partner:
+    topic_name = dassana_partner + "_LOG_EVENT_TOPIC_NAME"
+
+connection_id = None
+try:
+    connection_id = get_ingestion_config_id()
+except:
+    connection_id = None
 
 scope_id_mapping = {
     "crowdstrike_edr": "detection",
@@ -95,11 +104,14 @@ def add_developer_context(metadata, status ,exception):
 def add_customer_context(state, exception=None):
 
     state["status"] = "ok" if state.get("status") == "ready_for_loading" else state.get("status")
-    if dassana_partner_tenant_id:
+    if dassana_partner and dassana_partner_tenant_id:
         state["tenantId"] = dassana_partner_tenant_id
+        raise KeyError("DASSANA_PARTNER_TENANT_ID environment variable is not set. Review configuration.")
 
-    if dassana_partner_client_id:
+
+    if dassana_partner and dassana_partner_client_id:
         state["siteId"] = dassana_partner_client_id
+        raise KeyError("DASSANA_PARTNER_CLIENT_ID environment variable is not set. Review configuration.")
 
     if state["status"] == 'failed':
         state["errorDetails"] = {}

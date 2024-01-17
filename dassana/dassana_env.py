@@ -93,5 +93,5 @@ def get_partner_tenant_id():
 
 def get_logging_enbled():
     if "DASSANA_LOGGING_ENABLED" not in os.environ:
-        return True
+        return False
     return True
