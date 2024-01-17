@@ -1,7 +1,7 @@
 import datetime
 from uuid import uuid4
 
-from .common import *
+from .dassana_publisher import publish_message
 from .dassana_env import *
 
 from typing import Final
@@ -110,12 +110,14 @@ def add_customer_context(state, exception=None):
     state["status"] = "ok" if state.get("status") == "ready_for_loading" else state.get("status")
     if dassana_partner and dassana_partner_tenant_id:
         state["tenantId"] = dassana_partner_tenant_id
+    elif dassana_partner and not dassana_partner_tenant_id:
         raise KeyError("DASSANA_PARTNER_TENANT_ID environment variable is not set. Review configuration.")
 
 
     if dassana_partner and dassana_partner_client_id:
         state["siteId"] = dassana_partner_client_id
-        raise KeyError("DASSANA_PARTNER_CLIENT_ID environment variable is not set. Review configuration.")
+    elif dassana_partner and not dassana_partner_client_id:
+        raise KeyError("DASSANA_PARTNER_TENANT_ID environment variable is not set. Review configuration.")
 
     if state["status"] == 'failed':
         state["errorDetails"] = {}
