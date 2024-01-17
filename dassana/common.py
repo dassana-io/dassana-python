@@ -368,8 +368,8 @@ class DassanaWriter:
             job_result_metadata["is_auto_recoverable"] = False
 
         metadata = {"job_result": job_result_metadata}
+        self.cancel_ingestion_job(metadata, "failed") 
         log(self.source, scope_id=self.metadata["scope"]["scopeId"], exception=exception_from_src)
-        self.cancel_ingestion_job(metadata, "failed")   
 
     def close(self, metadata=None):
         if metadata is None:
