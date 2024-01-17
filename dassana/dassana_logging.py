@@ -63,15 +63,21 @@ def log(source, status=None, exception=None, locals={}, scope_id=None, metadata=
 def add_developer_context(metadata, status ,exception):
     state = {}
 
-    if metadata:
-        state["pass"] = metadata["source"]["pass"]
-        state["fail"] = metadata["source"]["fail"]
-        state["debugLog"] = metadata["source"]["debug_log"]
-    
-    if status == 'failed':
+    if status == 'ready_for_loading' and metadata:
+        state["source"] = {}
+        state["source"]["pass"] = metadata["source"]["pass"]
+        state["source"]["fail"] = metadata["source"]["fail"]
+        state["source"]["debugLog"] = metadata["source"]["debug_log"]
+
+    elif status == 'failed':
         state["errorDetails"] = {}
 
-        if exception:
+        if metadata:
+            state["errorDetails"]["pass"] = metadata["pass"]
+            state["errorDetails"]["fail"] = metadata["fail"]
+            state["errorDetails"]["debugLog"] = metadata["debug_log"]
+
+        elif exception:
             if isinstance(exception, exc.DassanaException):
                 state["errorDetails"]["errorCode"] = exception.error_type
                 state["errorDetails"]["isInternal"] = exception.is_internal
@@ -86,22 +92,25 @@ def add_developer_context(metadata, status ,exception):
                     state["errorDetails"]["httpResonse"] = exception.http_response.__dict__ 
                 return state
         
-        if "error_code" in metadata:
+        if metadata and "error_code" in metadata:
             state["errorDetails"]["errorCode"] = metadata["error_code"]
         else:
             state["errorDetails"]["errorCode"] = "internal_error"
 
-        if "is_internal" in metadata:
+        if metadata and "is_internal" in metadata:
             state["errorDetails"]["isInternal"] = metadata["is_internal"]
         else:
             state["errorDetails"]["isInternal"] = True
         
-        if "is_auto_recoverable" in metadata:
+        if metadata and "is_auto_recoverable" in metadata:
             state["errorDetails"]["isAutoRecoverable"] = metadata["is_auto_recoverable"]
         else:
             state["errorDetails"]["isAutoRecoverable"] = False
 
-        state["errorDetails"]["errorMessage"] = "Unexpected error occurred while collecting data"
+        if metadata and "error_message" in metadata:
+            state["errorDetails"]["errorMessage"] = metadata["error_message"]
+        else:
+            state["errorDetails"]["errorMessage"] = "Unexpected error occurred while collecting data"
     return state
   
 def add_customer_context(state, exception=None):

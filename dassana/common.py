@@ -292,8 +292,11 @@ class DassanaWriter:
         with open(str(self.file_path) + ".gz", "rb") as read:
             data = read.read()
             requests.put(url=signed_url, data=data, headers=headers)
+            
+    def cancel_job_with_error_info(self, error_code, failure_reason, fail_type="failed", error_message=None, is_internal=True, is_auto_recoverable=False):
+        if not error_message:
+            error_message = "Unexpected error occurred while collecting data"
 
-    def cancel_job(self, error_code, failure_reason, fail_type="failed", is_internal=True, is_auto_recoverable=False):
         global job_list
         job_list.discard(self.job_id)
         if os.path.exists("service_account.json"):
@@ -305,6 +308,7 @@ class DassanaWriter:
                       "debug_log": list(self.debug_log),
                       "pass": self.pass_counter, "fail": self.fail_counter,
                       "error_code": error_code,
+                      "error_message": error_message,
                       "is_internal": is_internal,
                       "is_auto_recoverable": is_auto_recoverable}
         metadata["job_result"] = job_result
@@ -342,7 +346,7 @@ class DassanaWriter:
 
         metadata = {"job_result": job_result_metadata}
         self.cancel_ingestion_job(metadata, "failed") 
-        log(self.source, scope_id=self.metadata["scope"]["scopeId"], exception=exception_from_src)
+        log(self.source, scope_id=self.metadata["scope"]["scopeId"], exception=exception_from_src, metadata=job_result_metadata)
 
     def close(self, metadata=None):
         if metadata is None:
