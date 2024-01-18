@@ -346,7 +346,7 @@ class DassanaWriter:
 
         metadata = {"job_result": job_result_metadata}
         self.cancel_ingestion_job(metadata, "failed") 
-        log(scope_id=self.metadata["scope"]["scopeId"], exception=exception_from_src, metadata=job_result_metadata)
+        log(status=job_result_metadata["status"], scope_id=self.metadata["scope"]["scopeId"], exception=exception_from_src, metadata=job_result_metadata)
 
     def close(self, metadata=None):
         if metadata is None:
