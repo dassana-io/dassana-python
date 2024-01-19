@@ -5,7 +5,7 @@ from .dassana_publisher import publish_message
 from .dassana_env import *
 
 from typing import Final
-import logging
+import logging, json
 import dassana.dassana_exception as exc
 
 
@@ -52,9 +52,9 @@ def log(status=None, exception=None, locals={}, scope_id=None, metadata={}, job_
     message["customerCtx"].update(add_customer_context(message["customerCtx"], exception))
 
     if state["status"] == "failed":
-        logger.error(msg=message["developerCtx"])
+        logger.error(msg=json.dumps(message["developerCtx"]))
     else:
-        logger.info(msg=message["developerCtx"])
+        logger.info(msg=json.dumps(message["developerCtx"]))
     
     message = message["customerCtx"]
     
