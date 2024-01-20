@@ -4,7 +4,6 @@ from concurrent import futures
 from concurrent.futures import wait
 from .dassana_env import *
 import json
-import traceback
 import logging
 
 publisher = None
@@ -24,8 +23,8 @@ def publish_message(message, topic_name):
             topic_path = publisher.topic_path(project_id, topic_name)
         data = json.dumps(message)
         # When you publish a message, the client returns a future.
-        publish_future = publisher.publish(topic_path, data.encode("utf-8"))
-        publish_future.result()
+        publish_future = publisher.publish(topic_path, data.encode("utf-8"), timeout=180)
+        publish_future.result(timeout=180)
         
         # Non-blocking. Publish failures are handled in the callback function.
         # publish_future.add_done_callback(get_callback(publish_future, data))
@@ -37,5 +36,3 @@ def publish_message(message, topic_name):
 
     except Exception as e:
         logger.error(f"Failed To Publish Message to topic {topic_name} Because of {e}")
-        traceback.print_exc()
-        raise
