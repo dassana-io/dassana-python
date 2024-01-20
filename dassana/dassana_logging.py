@@ -12,6 +12,7 @@ import dassana.dassana_exception as exc
 logger: Final = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+tenant_id = get_tenant_id()
 dassana_partner = get_partner()
 dassana_partner_client_id = get_partner_client_id()
 dassana_partner_tenant_id = get_partner_tenant_id()
@@ -63,7 +64,7 @@ def log(status=None, exception=None, locals={}, scope_id=None, metadata={}, job_
 
 def add_developer_context(metadata, status ,exception):
     state = {}
-
+    state["tenantId"] = tenant_id
     if status == 'ready_for_loading' and metadata:
         state["source"] = {}
         state["source"]["pass"] = metadata["source"]["pass"]
