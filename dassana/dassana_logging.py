@@ -33,8 +33,8 @@ scope_id_mapping = {
     "qualys_vulnerability": "vulnerability",
     "wiz_cwpp": "vulnerability",
     "wiz_cspm": "cspm",
-    "prisma_cloud_security_group": "asset",
-    "prisma_cloud_instance": "asset",
+    "prisma_cloud_security_group": "security-group",
+    "prisma_cloud_instance": "instance",
     "carbon_black_vulnerability": "vulnerability",
     "ms_defender_endpoint_alert": "detection",
     "ms_defender_endpoint_vulnerability": "vulnerability"
@@ -128,7 +128,7 @@ def add_customer_context(state, exception=None):
     if dassana_partner and dassana_partner_client_id:
         state["siteId"] = dassana_partner_client_id
     elif dassana_partner and not dassana_partner_client_id:
-        raise KeyError("DASSANA_PARTNER_TENANT_ID environment variable is not set. Review configuration.")
+        raise KeyError("DASSANA_PARTNER_CLIENT_ID environment variable is not set. Review configuration.")
 
     if state["status"] == 'failed':
         state["errorDetails"] = {}
