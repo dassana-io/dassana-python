@@ -90,3 +90,8 @@ def get_partner_tenant_id():
     if "DASSANA_PARTNER_TENANT_ID" not in os.environ:
         return None
     return str(os.environ["DASSANA_PARTNER_TENANT_ID"])
+
+def get_scope_to_run():
+    if "SCOPE_TO_RUN" not in os.environ:
+        return None
+    return str(os.environ("SCOPE_TO_RUN"))
