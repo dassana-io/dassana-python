@@ -58,7 +58,7 @@ def patch_ingestion(job_id, metadata=None):
         metadata = {}
     json_body = {"metadata": metadata}
     res = call_api('PATCH', get_ingestion_srv_url() + "/job/" + job_id, headers=get_headers(), json=json_body,
-                   is_internal=True, verify=False if get_ingestion_srv_url().endswith("svc.cluster.local:443") else True)
+                   is_internal=True, verify=False if "svc.cluster.local" in get_ingestion_srv_url() else True)
     return res.json()
 
 
@@ -88,7 +88,7 @@ def get_ingestion_config(ingestion_config_id, app_id):
     url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
     headers = get_headers()
     response = call_api("GET", url, headers=headers,
-                        verify=False if app_url.endswith("svc.cluster.local:443") else True,
+                        verify=False if "svc.cluster.local" in app_url else True,
                         is_internal=True)
     
     try:
@@ -107,7 +107,7 @@ def patch_ingestion_config(ingestion_config_id, app_id, payload):
     url = f"https://{app_url}/app/{app_id}/ingestionConfig/{ingestion_config_id}"
     headers = get_headers()
     response = call_api("PATCH", url=url, headers=headers, json=payload,
-                        verify=False if app_url.endswith("svc.cluster.local:443") else True,
+                        verify=False if "svc.cluster.local" in app_url else True,
                         is_internal=True)
     return response.text
 
@@ -119,7 +119,7 @@ def get_access_token():
         "client_id": get_client_id(),
         "client_secret": get_client_secret(),
     }
-    response = call_api("POST", url, data=data, verify=False if auth_url.endswith("svc.cluster.local:443") else True,
+    response = call_api("POST", url, data=data, verify=False if "svc.cluster.local" in auth_url else True,
                         is_internal=True)
     return response.json()["access_token"]
 
@@ -291,7 +291,7 @@ class DassanaWriter:
         }
         with open(str(self.file_path) + ".gz", "rb") as read:
             data = read.read()
-            requests.put(url=signed_url, data=data, headers=headers, verify=False if signed_url.endswith("svc.cluster.local:443") else True)
+            requests.put(url=signed_url, data=data, headers=headers, verify=False if "svc.cluster.local" in signed_url else True)
             
     def cancel_job_with_error_info(self, error_code, failure_reason, fail_type="failed", error_message=None, is_internal=True, is_auto_recoverable=False):
         if not error_message:
@@ -377,7 +377,7 @@ class DassanaWriter:
             "metadata": metadata
         }
         res = call_api("POST", self.ingestion_service_url + "/job/" + self.job_id + "/" + "done", headers=get_headers(),
-                       json=json_body, is_internal=True, verify=False if self.ingestion_service_url.endswith("svc.cluster.local:443") else True)
+                       json=json_body, is_internal=True, verify=False if "svc.cluster.local" in self.ingestion_service_url else True)
         logger.debug(f"Response Status: {res.status_code}")
         logger.debug(f"Request Body: {res.request.body}")
         logger.debug(f"Response Body: {res.text}")
@@ -396,7 +396,7 @@ class DassanaWriter:
             del json_body["priority"]
 
         res = call_api("POST", self.ingestion_service_url + "/job/", headers=get_headers(), json=json_body,
-                       is_internal=True, verify=False if self.ingestion_service_url.endswith("svc.cluster.local:443") else True,)
+                       is_internal=True, verify=False if "svc.cluster.local" in self.ingestion_service_url else True,)
         return res.json()
 
     def cancel_ingestion_job(self, metadata, fail_type):
@@ -404,7 +404,7 @@ class DassanaWriter:
             "metadata": metadata
         }
         res = call_api("POST", self.ingestion_service_url + "/job/" + self.job_id + "/" + fail_type,
-                       headers=get_headers(), json=json_body, is_internal=True, verify=False if self.ingestion_service_url.endswith("svc.cluster.local:443") else True)
+                       headers=get_headers(), json=json_body, is_internal=True, verify=False if "svc.cluster.local" in self.ingestion_service_url else True)
         logger.debug(f"Response Status: {res.status_code}")
         logger.debug(f"Request Body: {res.request.body}")
         logger.debug(f"Response Body: {res.text}")
@@ -412,6 +412,6 @@ class DassanaWriter:
 
     def get_signing_url(self):
         res = call_api("GET", self.ingestion_service_url + "/job/" + self.job_id + "/" + "signing-url",
-                       headers=get_headers(), is_internal=True, verify=False if self.ingestion_service_url.endswith("svc.cluster.local:443") else True)
+                       headers=get_headers(), is_internal=True, verify=False if "svc.cluster.local" in self.ingestion_service_url else True)
         signed_url = res.json()["url"]
         return signed_url
