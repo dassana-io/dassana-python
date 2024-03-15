@@ -25,7 +25,7 @@ topic_name = None
 nats_partner_subject_name = None
 if dassana_partner:
     topic_name = dassana_partner + "_log_event_topic"
-    nats_partner_subject_name = dassana_partner + "_log_event_subject"
+    nats_partner_subject_name = "partner." + dassana_partner + "_log_event_subject"
 
 scope_id_mapping = {
     "crowdstrike_edr": "detection",
