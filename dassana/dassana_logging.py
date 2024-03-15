@@ -3,10 +3,12 @@ from uuid import uuid4
 
 from .dassana_publisher import publish_message
 from .dassana_env import *
+from .dassana_publisher_nats import publish_message_nats
 
 from typing import Final
 import logging, json
 import dassana.dassana_exception as exc
+import asyncio
 
 
 logger: Final = logging.getLogger(__name__)
@@ -20,8 +22,10 @@ config_id = get_ingestion_config_id()
 app_id = get_app_id()
 
 topic_name = None
+nats_partner_subject_name = None
 if dassana_partner:
     topic_name = dassana_partner + "_log_event_topic"
+    nats_partner_subject_name = dassana_partner + "_log_event_subject"
 
 scope_id_mapping = {
     "crowdstrike_edr": "detection",
@@ -61,6 +65,11 @@ def log(status=None, exception=None, locals={}, scope_id=None, metadata={}, job_
     
     if dassana_partner:
         publish_message(message, topic_name)
+        try:
+            event_loop = asyncio.get_event_loop()
+            event_loop.run_until_complete(publish_message_nats(message, nats_partner_subject_name))
+        except Exception as e:
+            logging.error(f"Failed To Publish Message to nats-subject {nats_partner_subject_name} Because of {e}")
 
 def add_developer_context(metadata, status ,exception):
     state = {}
