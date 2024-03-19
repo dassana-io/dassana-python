@@ -22,6 +22,8 @@ async def publish_message_nats(message, nats_partner_subject_name):
 
     await jet_stream.publish(nats_partner_subject_name, data.encode("utf-8"))
     
+    await nats_client.flush()
+    await nats_client.drain()
     await nats_client.close()
 
   except Exception as e:
