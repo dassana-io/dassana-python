@@ -95,3 +95,6 @@ def get_scope_to_run():
     if "SCOPE_TO_RUN" not in os.environ:
         return None
     return str(os.environ["SCOPE_TO_RUN"])
+
+def get_nats_url():
+    return os.environ.get("DASSANA_NATS_URL", "nats://nats.nats.svc:4222")
